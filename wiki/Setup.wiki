@@ -1,5 +1,5 @@
 #labels Featured,Phase-Deploy
-# Getting Started Guide.
+Getting Started Guide.
 
 = Introduction =
 
