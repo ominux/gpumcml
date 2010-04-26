@@ -1,0 +1,18 @@
+#labels Featured,Phase-Deploy
+# Getting Started Guide.
+
+= Introduction =
+
+This tutorial aims to guide new users through the initial pain of setting up the environment for compiling and running the source code.
+
+== Step 0: Graphics Card Setup == 
+
+== Step 1: CUDA Setup ==
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
