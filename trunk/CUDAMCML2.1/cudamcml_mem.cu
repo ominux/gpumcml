@@ -1,0 +1,234 @@
+/*	This file is part of CUDAMCML.
+
+    CUDAMCML is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    CUDAMCML is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with CUDAMCML.  If not, see <http://www.gnu.org/licenses/>.*/
+
+#include <stdio.h>
+
+#include "cudamcml_kernel.h"
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+int InitDCMem(SimulationStruct *sim, unsigned int A_rz_overflow)
+{
+    // Make sure that the number of layers is within the limit.
+    unsigned int n_layers = sim->n_layers + 2;
+    if (n_layers > MAX_LAYERS) return 1;
+
+    SimParamGPU h_simparam;
+
+    h_simparam.num_layers = sim->n_layers;  // not plus 2 here
+    h_simparam.init_photon_w = sim->start_weight;
+    h_simparam.dz = sim->det.dz;
+    h_simparam.dr = sim->det.dr;
+    h_simparam.na = sim->det.na;
+    h_simparam.nz = sim->det.nz;
+    h_simparam.nr = sim->det.nr;
+    h_simparam.A_rz_overflow = A_rz_overflow;
+
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(d_simparam,
+                &h_simparam, sizeof(SimParamGPU)) );
+
+    LayerStructGPU h_layerspecs[MAX_LAYERS];
+
+    for (unsigned int i = 0; i < n_layers; ++i)
+    {
+        h_layerspecs[i].z0 = sim->layers[i].z_min;
+        h_layerspecs[i].z1 = sim->layers[i].z_max;
+        float n1 = sim->layers[i].n;
+        h_layerspecs[i].n = n1;
+
+        // TODO: sim->layer should not do any pre-computation.
+        float rmuas = sim->layers[i].mutr;
+        h_layerspecs[i].muas = 1.0F / rmuas;
+        h_layerspecs[i].rmuas = rmuas;
+        h_layerspecs[i].mua_muas = sim->layers[i].mua * rmuas;
+
+        h_layerspecs[i].g = sim->layers[i].g;
+
+        if (i == 0 || i == n_layers-1)
+        {
+            h_layerspecs[i].cos_crit0 = 0.0F;
+            h_layerspecs[i].cos_crit1 = 0.0F;
+        }
+        else
+        {
+            float n2 = sim->layers[i-1].n;
+            h_layerspecs[i].cos_crit0 = (n1 > n2) ?
+                sqrtf(1.0F - n2*n2/(n1*n1)) : 0.0F;
+            n2 = sim->layers[i+1].n;
+            h_layerspecs[i].cos_crit1 = (n1 > n2) ?
+                sqrtf(1.0F - n2*n2/(n1*n1)) : 0.0F;
+        }
+    }
+
+    // Copy layer data to constant device memory
+    CUDA_SAFE_CALL( cudaMemcpyToSymbol(d_layerspecs,
+                &h_layerspecs, n_layers*sizeof(LayerStructGPU)) );
+
+    return 0;
+}
+
+int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstates,
+        SimulationStruct* sim)
+{
+    int rz_size = sim->det.nr * sim->det.nz;
+    int ra_size = sim->det.nr * sim->det.na;
+
+    unsigned int size;
+
+    // Allocate n_photons_left (on device only)
+    size = sizeof(unsigned int);
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->n_photons_left, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->n_photons_left,
+                HostMem->n_photons_left, size, cudaMemcpyHostToDevice) );
+
+    // random number generation (on device only)
+    size = NUM_THREADS * sizeof(unsigned int);
+#ifdef USE_MT_RNG
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->a, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->a, HostMem->a, size,
+                cudaMemcpyHostToDevice) );
+    size = NUM_THREADS * sizeof(unsigned long long);
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->x, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->x, HostMem->x, size,
+                cudaMemcpyHostToDevice) );
+#else
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s1, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s1, HostMem->s1, size,
+                cudaMemcpyHostToDevice) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s2, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s2, HostMem->s2, size,
+                cudaMemcpyHostToDevice) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s3, size) );
+    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s3, HostMem->s3, size,
+                cudaMemcpyHostToDevice) );
+#endif
+
+    // Allocate A_rz on host and device
+    size = rz_size * sizeof(unsigned long long);
+    HostMem->A_rz = (unsigned long long*)malloc(size);
+    if(HostMem->A_rz==NULL){printf("Error allocating HostMem->A_rz"); exit (1);}
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->A_rz, size) );
+    CUDA_SAFE_CALL( cudaMemset(DeviceMem->A_rz, 0, size) );
+
+    // Allocate Rd_ra on host and device
+    size = ra_size * sizeof(unsigned long long);
+    HostMem->Rd_ra = (unsigned long long*)malloc(size);
+    if(HostMem->Rd_ra==NULL){printf("Error allocating HostMem->Rd_ra"); exit (1);}
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->Rd_ra, size) );
+    CUDA_SAFE_CALL( cudaMemset(DeviceMem->Rd_ra, 0, size) );
+
+    // Allocate Tt_ra on host and device
+    size = ra_size * sizeof(unsigned long long);
+    HostMem->Tt_ra = (unsigned long long*)malloc(size);
+    if(HostMem->Tt_ra==NULL){printf("Error allocating HostMem->Tt_ra"); exit (1);}
+    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->Tt_ra, size) );
+    CUDA_SAFE_CALL( cudaMemset(DeviceMem->Tt_ra, 0, size) );
+
+    /* Allocate and initialize GPU thread states on the device.
+     *
+     * We only initialize rnd_a and rnd_x here. For all other fields, whose
+     * initial value is a known constant, we use a kernel to do the
+     * initialization.
+     */
+
+    // photon structure
+    size = NUM_THREADS * sizeof(float);
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_x, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_y, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_z, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_ux, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uy, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uz, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_w, size) );
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_sleft, size) );
+    size = NUM_THREADS * sizeof(unsigned int);
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_layer, size) );
+
+    // thread active
+    CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->is_active, size) );
+
+    return 1;
+}
+
+// Copy data from Device to Host memory
+int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem, SimulationStruct* sim)
+{
+    int rz_size = sim->det.nr*sim->det.nz;
+    int ra_size = sim->det.nr*sim->det.na;
+
+    // Copy A_rz, Rd_ra and Tt_ra
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->A_rz,DeviceMem->A_rz,rz_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Rd_ra,DeviceMem->Rd_ra,ra_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Tt_ra,DeviceMem->Tt_ra,ra_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+
+    //Also copy the state of the RNG's
+#ifdef USE_MT_RNG
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->x,DeviceMem->x,NUM_THREADS*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+#endif
+
+    return 0;
+}
+
+void FreeHostSimState(SimState *hstate)
+{
+    if (hstate->n_photons_left != NULL)
+    {
+        free(hstate->n_photons_left); hstate->n_photons_left = NULL;
+    }
+
+    // DO NOT FREE RANDOM NUMBER SEEDS HERE.
+
+    if (hstate->A_rz != NULL)
+    {
+        free(hstate->A_rz); hstate->A_rz = NULL;
+    }
+    if (hstate->Rd_ra != NULL)
+    {
+        free(hstate->Rd_ra); hstate->Rd_ra = NULL;
+    }
+    if (hstate->Tt_ra != NULL)
+    {
+        free(hstate->Tt_ra); hstate->Tt_ra = NULL;
+    }
+}
+
+void FreeDeviceSimStates(SimState *dstate, GPUThreadStates *tstates)
+{
+    cudaFree(dstate->n_photons_left); dstate->n_photons_left = NULL;
+#ifdef USE_MT_RNG
+    cudaFree(dstate->x); dstate->x = NULL;
+    cudaFree(dstate->a); dstate->a = NULL;
+#else
+    cudaFree(dstate->s1); dstate->s1 = NULL;
+    cudaFree(dstate->s2); dstate->s2 = NULL;
+    cudaFree(dstate->s3); dstate->s3 = NULL;
+#endif
+    cudaFree(dstate->A_rz); dstate->A_rz = NULL;
+    cudaFree(dstate->Rd_ra); dstate->Rd_ra = NULL;
+    cudaFree(dstate->Tt_ra); dstate->Tt_ra = NULL;
+
+    cudaFree(tstates->photon_x); tstates->photon_x = NULL;
+    cudaFree(tstates->photon_y); tstates->photon_y = NULL;
+    cudaFree(tstates->photon_z); tstates->photon_z = NULL;
+    cudaFree(tstates->photon_ux); tstates->photon_ux = NULL;
+    cudaFree(tstates->photon_uy); tstates->photon_uy = NULL;
+    cudaFree(tstates->photon_uz); tstates->photon_uz = NULL;
+    cudaFree(tstates->photon_w); tstates->photon_w = NULL;
+    cudaFree(tstates->photon_sleft); tstates->photon_sleft = NULL;
+    cudaFree(tstates->photon_layer); tstates->photon_layer = NULL;
+    cudaFree(tstates->is_active); tstates->is_active = NULL;
+}
+
