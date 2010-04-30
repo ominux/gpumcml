@@ -3,11 +3,20 @@
 
 // Use the Mersenne Twister random number generator
 // (as opposed to Tausworthe generator)
-#define USE_MT_RNG
+// #define USE_MT_RNG
 
-/////////////////////////////
-//MCML constants
-/////////////////////////////
+#define SINGLE_PRECISION
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+// Various data types
+typedef float FLOAT;
+typedef unsigned long long UINT64;
+typedef unsigned int UINT32;
+
+// MCML constants
+#ifdef SINGLE_PRECISION
 
 #define WEIGHT 1E-4F        /* Critical weight for roulette. */
 
@@ -22,6 +31,31 @@
 #define COSZERO (1.0F - 1.0E-6F)    // NOTE: 1.0-1.0E-7 doesn't work in CUDA!
 #define CHANCE 0.1F
 
+#define MCML_FP_ZERO 0.0F
+#define FP_ONE  1.0F
+#define FP_TWO  2.0F
+
+#else
+
+#define WEIGHT 1E-4     /* Critical weight for roulette. */
+
+// scaling factor for photon weight, which is then converted to integer
+#define WEIGHT_SCALE 12000000
+
+#define PI_const 3.1415926
+#define RPI 0.318309886
+
+//NOTE: ********#define COSZERO (1.0-1.0E-12) infers double data type
+#define COSNINETYDEG 1.0E-6
+#define COSZERO (1.0 - 1.0E-6)    // NOTE: 1.0-1.0E-7 doesn't work in CUDA!
+#define CHANCE 0.1
+
+#define MCML_FP_ZERO 0.0
+#define FP_ONE  1.0
+#define FP_TWO  2.0
+
+#endif
+
 #define STR_LEN 200
 
 //////////////////////////////////////////////////////////////////////////////
@@ -29,22 +63,22 @@
 
 typedef struct
 {
-    float z_min;		// Layer z_min [cm]
-    float z_max;		// Layer z_max [cm]
-    float mutr;			// Reciprocal mu_total [cm]
-    float mua;			// Absorption coefficient [1/cm]
-    float g;			// Anisotropy factor [-]
-    float n;			// Refractive index [-]
+    FLOAT z_min;		// Layer z_min [cm]
+    FLOAT z_max;		// Layer z_max [cm]
+    FLOAT mutr;			// Reciprocal mu_total [cm]
+    FLOAT mua;			// Absorption coefficient [1/cm]
+    FLOAT g;			// Anisotropy factor [-]
+    FLOAT n;			// Refractive index [-]
 } LayerStruct;
 
 typedef struct
 {
-    float dr;		// Detection grid resolution, r-direction [cm]
-    float dz;		// Detection grid resolution, z-direction [cm]
+    FLOAT dr;		// Detection grid resolution, r-direction [cm]
+    FLOAT dz;		// Detection grid resolution, z-direction [cm]
 
-    int na;			// Number of grid elements in angular-direction [-]
-    int nr;			// Number of grid elements in r-direction
-    int nz;			// Number of grid elements in z-direction
+    UINT32 na;		// Number of grid elements in angular-direction [-]
+    UINT32 nr;		// Number of grid elements in r-direction
+    UINT32 nz;		// Number of grid elements in z-direction
 } DetStruct;
 
 typedef struct 
@@ -57,13 +91,13 @@ typedef struct
     // ASCII or binary output
     char AorB;
 
-    unsigned long number_of_photons;
+    UINT32 number_of_photons;
     int ignoreAdetection;
-    float start_weight;
+    FLOAT start_weight;
 
     DetStruct det;
 
-    unsigned int n_layers;
+    UINT32 n_layers;
     LayerStruct* layers;
 } SimulationStruct;
 
@@ -74,7 +108,7 @@ typedef struct
 {
     // points to a scalar that stores the number of photons that are not
     // completed (i.e. either on the fly or not yet started)
-    unsigned int *n_photons_left;
+    UINT32 *n_photons_left;
 
     // per-thread seeds for random number generation
     // arrays of length NUM_THREADS
@@ -82,18 +116,18 @@ typedef struct
     // they live across different simulation runs and must be copied back
     // to the host.
 #ifdef USE_MT_RNG
-    unsigned long long *x;
-    unsigned int *a;
+    UINT64 *x;
+    UINT32 *a;
 #else
-    unsigned int *s1;
-    unsigned int *s2;
-    unsigned int *s3;
+    UINT32 *s1;
+    UINT32 *s2;
+    UINT32 *s3;
 #endif
 
     // output data
-    unsigned long long* Rd_ra;
-    unsigned long long* A_rz;			// Pointer to the 2D detection matrix!
-    unsigned long long* Tt_ra;
+    UINT64* Rd_ra;
+    UINT64* A_rz;			// Pointer to the 2D detection matrix!
+    UINT64* Tt_ra;
 } SimState;
 
 // Everything a host thread needs to know in order to run simulation on
@@ -107,26 +141,26 @@ typedef struct
 
     // constant input parameters
     SimulationStruct *sim;
-    // GPU-specific constant parameters:
-    // the limit that indicates overflow of an element of A_rz
-    // in the shared memory
-    unsigned int A_rz_overflow;
 
 } HostThreadState;
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-extern void print_usage();
+extern void usage(const char *prog_name);
 
-extern int interpret_arg(int argc, char* argv[], unsigned long long* seed,
+// Parse the command-line arguments.
+// Return 0 if successfull or a +ive error code.
+//
+extern int interpret_arg(int argc, char* argv[], char **fpath_p,
+        unsigned long long* seed,
         int* ignoreAdetection, unsigned int *num_GPUs);
 
 extern int read_simulation_data(char* filename,
         SimulationStruct** simulations, int ignoreAdetection);
 
 extern int Write_Simulation_Results(SimState* HostMem,
-        SimulationStruct* sim, double simulation_time);
+        SimulationStruct* sim, clock_t simulation_time);
 
 extern void FreeSimulationStruct(SimulationStruct* sim, int n_simulations);
 
