@@ -20,10 +20,10 @@
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-int InitDCMem(SimulationStruct *sim, unsigned int A_rz_overflow)
+int InitDCMem(SimulationStruct *sim)
 {
     // Make sure that the number of layers is within the limit.
-    unsigned int n_layers = sim->n_layers + 2;
+    UINT32 n_layers = sim->n_layers + 2;
     if (n_layers > MAX_LAYERS) return 1;
 
     SimParamGPU h_simparam;
@@ -35,23 +35,22 @@ int InitDCMem(SimulationStruct *sim, unsigned int A_rz_overflow)
     h_simparam.na = sim->det.na;
     h_simparam.nz = sim->det.nz;
     h_simparam.nr = sim->det.nr;
-    h_simparam.A_rz_overflow = A_rz_overflow;
 
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(d_simparam,
                 &h_simparam, sizeof(SimParamGPU)) );
 
-    LayerStructGPU h_layerspecs[MAX_LAYERS];
+    LayerStructGPU h_layerspecs[n_layers];
 
-    for (unsigned int i = 0; i < n_layers; ++i)
+    for (UINT32 i = 0; i < n_layers; ++i)
     {
         h_layerspecs[i].z0 = sim->layers[i].z_min;
         h_layerspecs[i].z1 = sim->layers[i].z_max;
-        float n1 = sim->layers[i].n;
+        FLOAT n1 = sim->layers[i].n;
         h_layerspecs[i].n = n1;
 
         // TODO: sim->layer should not do any pre-computation.
-        float rmuas = sim->layers[i].mutr;
-        h_layerspecs[i].muas = 1.0F / rmuas;
+        FLOAT rmuas = sim->layers[i].mutr;
+        h_layerspecs[i].muas = FP_ONE / rmuas;
         h_layerspecs[i].rmuas = rmuas;
         h_layerspecs[i].mua_muas = sim->layers[i].mua * rmuas;
 
@@ -59,17 +58,17 @@ int InitDCMem(SimulationStruct *sim, unsigned int A_rz_overflow)
 
         if (i == 0 || i == n_layers-1)
         {
-            h_layerspecs[i].cos_crit0 = 0.0F;
-            h_layerspecs[i].cos_crit1 = 0.0F;
+            h_layerspecs[i].cos_crit0 = MCML_FP_ZERO;
+            h_layerspecs[i].cos_crit1 = MCML_FP_ZERO;
         }
         else
         {
-            float n2 = sim->layers[i-1].n;
+            FLOAT n2 = sim->layers[i-1].n;
             h_layerspecs[i].cos_crit0 = (n1 > n2) ?
-                sqrtf(1.0F - n2*n2/(n1*n1)) : 0.0F;
+                sqrtf(FP_ONE - n2*n2/(n1*n1)) : MCML_FP_ZERO;
             n2 = sim->layers[i+1].n;
             h_layerspecs[i].cos_crit1 = (n1 > n2) ?
-                sqrtf(1.0F - n2*n2/(n1*n1)) : 0.0F;
+                sqrtf(FP_ONE - n2*n2/(n1*n1)) : MCML_FP_ZERO;
         }
     }
 
@@ -80,8 +79,9 @@ int InitDCMem(SimulationStruct *sim, unsigned int A_rz_overflow)
     return 0;
 }
 
-int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstates,
-        SimulationStruct* sim)
+// DAVID
+int InitSimStates(SimState* HostMem, SimState* DeviceMem,
+        GPUThreadStates *tstates, SimulationStruct* sim)
 {
     int rz_size = sim->det.nr * sim->det.nz;
     int ra_size = sim->det.nr * sim->det.na;
@@ -89,18 +89,18 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstat
     unsigned int size;
 
     // Allocate n_photons_left (on device only)
-    size = sizeof(unsigned int);
+    size = sizeof(UINT32);
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->n_photons_left, size) );
     CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->n_photons_left,
                 HostMem->n_photons_left, size, cudaMemcpyHostToDevice) );
 
     // random number generation (on device only)
-    size = NUM_THREADS * sizeof(unsigned int);
+    size = NUM_THREADS * sizeof(UINT32);
 #ifdef USE_MT_RNG
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->a, size) );
     CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->a, HostMem->a, size,
                 cudaMemcpyHostToDevice) );
-    size = NUM_THREADS * sizeof(unsigned long long);
+    size = NUM_THREADS * sizeof(UINT64);
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->x, size) );
     CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->x, HostMem->x, size,
                 cudaMemcpyHostToDevice) );
@@ -117,22 +117,28 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstat
 #endif
 
     // Allocate A_rz on host and device
-    size = rz_size * sizeof(unsigned long long);
-    HostMem->A_rz = (unsigned long long*)malloc(size);
-    if(HostMem->A_rz==NULL){printf("Error allocating HostMem->A_rz"); exit (1);}
+    size = rz_size * sizeof(UINT64);
+    HostMem->A_rz = (UINT64*)malloc(size);
+    if (HostMem->A_rz == NULL)
+    {
+        fprintf(stderr, "Error allocating HostMem->A_rz");
+        exit(1);
+    }
+    // On the device, we allocate multiple copies for less access contention.
+    size *= N_A_RZ_COPIES;
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->A_rz, size) );
     CUDA_SAFE_CALL( cudaMemset(DeviceMem->A_rz, 0, size) );
 
     // Allocate Rd_ra on host and device
-    size = ra_size * sizeof(unsigned long long);
-    HostMem->Rd_ra = (unsigned long long*)malloc(size);
+    size = ra_size * sizeof(UINT64);
+    HostMem->Rd_ra = (UINT64*)malloc(size);
     if(HostMem->Rd_ra==NULL){printf("Error allocating HostMem->Rd_ra"); exit (1);}
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->Rd_ra, size) );
     CUDA_SAFE_CALL( cudaMemset(DeviceMem->Rd_ra, 0, size) );
 
     // Allocate Tt_ra on host and device
-    size = ra_size * sizeof(unsigned long long);
-    HostMem->Tt_ra = (unsigned long long*)malloc(size);
+    size = ra_size * sizeof(UINT64);
+    HostMem->Tt_ra = (UINT64*)malloc(size);
     if(HostMem->Tt_ra==NULL){printf("Error allocating HostMem->Tt_ra"); exit (1);}
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->Tt_ra, size) );
     CUDA_SAFE_CALL( cudaMemset(DeviceMem->Tt_ra, 0, size) );
@@ -145,7 +151,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstat
      */
 
     // photon structure
-    size = NUM_THREADS * sizeof(float);
+    size = NUM_THREADS * sizeof(FLOAT);
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_x, size) );
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_y, size) );
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_z, size) );
@@ -154,7 +160,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem, GPUThreadStates *tstat
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uz, size) );
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_w, size) );
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_sleft, size) );
-    size = NUM_THREADS * sizeof(unsigned int);
+    size = NUM_THREADS * sizeof(UINT32);
     CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_layer, size) );
 
     // thread active
@@ -170,13 +176,13 @@ int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem, SimulationStruct
     int ra_size = sim->det.nr*sim->det.na;
 
     // Copy A_rz, Rd_ra and Tt_ra
-    CUDA_SAFE_CALL( cudaMemcpy(HostMem->A_rz,DeviceMem->A_rz,rz_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
-    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Rd_ra,DeviceMem->Rd_ra,ra_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
-    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Tt_ra,DeviceMem->Tt_ra,ra_size*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->A_rz,DeviceMem->A_rz,rz_size*sizeof(UINT64),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Rd_ra,DeviceMem->Rd_ra,ra_size*sizeof(UINT64),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->Tt_ra,DeviceMem->Tt_ra,ra_size*sizeof(UINT64),cudaMemcpyDeviceToHost) );
 
     //Also copy the state of the RNG's
 #ifdef USE_MT_RNG
-    CUDA_SAFE_CALL( cudaMemcpy(HostMem->x,DeviceMem->x,NUM_THREADS*sizeof(unsigned long long),cudaMemcpyDeviceToHost) );
+    CUDA_SAFE_CALL( cudaMemcpy(HostMem->x,DeviceMem->x,NUM_THREADS*sizeof(UINT64),cudaMemcpyDeviceToHost) );
 #endif
 
     return 0;

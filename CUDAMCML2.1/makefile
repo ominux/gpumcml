@@ -1,13 +1,16 @@
 
-NVCC=nvcc
-GCC=g++
+CUDA_INSTALL_ROOT=/usr/local/cuda
+
+NVCC := $(CUDA_INSTALL_ROOT)/bin/nvcc
+GCC := g++
 
 #export PTX_FLAGS := $(PTXAS_FLAGS) -maxrregcount 64 -mem -v
 
-CFLAGS=-Wall -O3
-LDFLAGS=-L/usr/local/cuda/lib -Lcutil-linux
+CFLAGS=-m32 -Wall -O3
+LDFLAGS=-m32 -L/usr/local/cuda/lib -Lcutil-linux
 
-NVCC_FLAGS+=-O5 -DUNIX -arch sm_13 -use_fast_math # -keep -deviceemu
+NVCC_FLAGS+=-m32 -O3 -DUNIX -keep -arch sm_20 -use_fast_math # -deviceemu
+NVCC_FLAGS+=-maxrregcount 32
 NVCC_FLAGS+= -I/usr/local/cuda/include -Icutil-linux
 
 ######################################################################

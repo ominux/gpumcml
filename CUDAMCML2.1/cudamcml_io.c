@@ -26,50 +26,60 @@
 
 #include "cudamcml.h"
 
-//////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////////////////////////////
-
-void print_usage()
+void usage(const char *prog_name)
 {
+    printf("\nUsage: %s [-A] [-S<seed>] [-G<num GPUs>] <input file>\n\n",
+            prog_name);
+    printf("  -A: ignore A detection\n");
+    printf("  -S: seed for random number generation (MT only)\n");
+    printf("  -G: set the number of GPUs this program uses\n");
     printf("\n");
-    printf("cudamcml <simulation input file> [-A] [-G<num_GPUs>]\n\n");
-    printf("    -A: ignore absorption detection (no output of A_rz)\n"); 
-    printf("    -G: specify the number of GPUs to be used\n");
-    printf("\n");
+    fflush(stdout);
 }
 
-int interpret_arg(int argc, char* argv[], unsigned long long* seed,
+int interpret_arg(int argc, char* argv[], char **fpath_p,
+        unsigned long long* seed,
         int* ignoreAdetection, unsigned int *num_GPUs)
 {
     int i;
+    char *fpath = NULL;
 
-    // Start from the 2nd argument (after the file name).
-    for(i=2;i<argc;i++)
+    for (i = 1; i < argc; ++i)
     {
-        if(!strcmp(argv[i], "-A"))
+        char *arg = argv[i];
+
+        if (arg[0] != '-')
         {
-            *ignoreAdetection=1;
-            printf("Ignoring A-detection!\n");
+            // This is the input file path.
+            fpath = arg;
+            // Ignore the remaining args.
+            break;
         }
-        else if(!strncmp(argv[i],"-S",2) && sscanf(argv[i],"%*2c %llu",seed))
+
+        // Skip the '-'.
+        ++arg;
+
+        // This is an option.
+        if (strcmp(arg, "A") == 0)
         {
-            printf("Seed=%llu\n",*seed);
+            *ignoreAdetection = 1;
         }
-        else if (strncmp(argv[i], "-G", 2) == 0)
+        else if (sscanf(arg, "S%llu", seed) == 1)
         {
-            sscanf(&argv[i][2], "%u", num_GPUs);
+            // <seed> has been set.
         }
-        else
+        else if (sscanf(arg, "G%u", num_GPUs) == 1)
         {
-            fprintf(stderr, "Unknown argument %s!\n", argv[i]);
-            return 1;
+            // <num_GPUs> has been set.
         }
     }
 
-    return 0;
+    if (fpath_p != NULL) *fpath_p = fpath;
+
+    return (fpath == NULL);
 }
 
-int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, double simulation_time)
+int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t simulation_time)
 {
 	FILE* pFile_inp;
 	FILE* pFile_outp;
@@ -94,11 +104,7 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, double si
 	unsigned long long temp=0;
     double scale1 = (double)(WEIGHT_SCALE)*(double)sim->number_of_photons;
 	double scale2;
-	
-	// Calculate and write RAT
-	unsigned long long Rd=0;	// Diffuse reflectance [-]
-	unsigned long long A=0;		// Absorbed fraction [-]
-	unsigned long long T=0;		// Transmittance [-]
+
 		
 	// Open the input and output files
 	pFile_inp = fopen (sim->inp_filename , "r");
@@ -118,7 +124,7 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, double si
 	fprintf(pFile_outp,"####\n\n");
 
 	// Write simulation time
-	fprintf(pFile_outp,"# User time: %.3f sec\n\n",simulation_time);
+	fprintf(pFile_outp,"# User time: %.2f sec\n\n",(double)simulation_time/CLOCKS_PER_SEC);
 
 
 	fprintf(pFile_outp,"InParam\t\t# Input parameters:\n");
@@ -134,6 +140,12 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, double si
 
 	//printf("pos=%d\n",ftell(pFile_inp));
 	fclose(pFile_inp);
+	
+
+	// Calculate and write RAT
+	unsigned long long Rd=0;	// Diffuse reflectance [-]
+	unsigned long long A=0;		// Absorbed fraction [-]
+	unsigned long long T=0;		// Transmittance [-]
 
 	for(i=0;i<rz_size;i++)A+= HostMem->A_rz[i];
 	for(i=0;i<ra_size;i++){T += HostMem->Tt_ra[i];Rd += HostMem->Rd_ra[i];}
@@ -338,7 +350,6 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 	float ftemp[NFLOATS];//Find a more elegant way to do this...
 	int itemp[NINTS];
 
-	double n1, n2, r; 
 
 	pFile = fopen(filename , "r");
 	if (pFile == NULL){perror ("Error opening file");return 0;}
@@ -452,9 +463,9 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 		//printf("end=%d\n",(*simulations)[i].end);
 
 		//calculate start_weight
-		n1=(*simulations)[i].layers[0].n;
-		n2=(*simulations)[i].layers[1].n;
-		r = (n1-n2)/(n1+n2);
+		double n1=(*simulations)[i].layers[0].n;
+		double n2=(*simulations)[i].layers[1].n;
+		double r = (n1-n2)/(n1+n2);
 		r = r*r;
 		(*simulations)[i].start_weight = 1.0F - (float)r;
 
@@ -464,8 +475,7 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 
 void FreeSimulationStruct(SimulationStruct* sim, int n_simulations)
 {
-	int i; 
-    for(i=0;i<n_simulations;i++)free(sim[i].layers);
+    for(int i=0;i<n_simulations;i++)free(sim[i].layers);
     free(sim);
 }
 

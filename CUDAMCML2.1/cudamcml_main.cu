@@ -48,27 +48,15 @@
 #include <float.h> //for FLT_MAX 
 #include <stdio.h>
 
+#include <cutil.h>
 #include <cuda_runtime.h>
-
-#ifdef _WIN32 
-  #include "cudamcml_io.c"
-	#include "cutil-win32/cutil.h"
-#else 
-  #include <cutil.h>
-#endif
-
-#ifdef _WIN32 
-	#include "cutil-win32/multithreading.h"
-#else
-	#include "multithreading.h"
-#endif
+#include "multithreading.h"
 
 #include "cudamcml.h"
 #include "cudamcml_kernel.h"
 
 #include "cudamcml_kernel.cu"
 #include "cudamcml_mem.cu"
-
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -81,7 +69,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 
     cudaError_t cudastat;
 
-	  CUDA_SAFE_CALL( cudaSetDevice(hstate->dev_id) );
+    CUDA_SAFE_CALL( cudaSetDevice(hstate->dev_id) );
 
     // Init the remaining states.
     InitSimStates(HostMem, &DeviceMem, &tstates, hstate->sim);
@@ -93,10 +81,10 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        exit(1);
+        return;
     }
 
-    InitDCMem(hstate->sim, hstate->A_rz_overflow);
+    InitDCMem(hstate->sim);
     CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
     cudastat=cudaGetLastError(); // Check if there was an error
     if (cudastat)
@@ -105,7 +93,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        exit(1);
+        return;
     }
 
     dim3 dimBlock(NUM_THREADS_PER_BLOCK);
@@ -121,8 +109,21 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        exit(1);
+        return;
     }
+
+    // DAVID
+    // Configure the L1 cache for Fermi.
+#ifdef USE_TRUE_CACHE
+    if (hstate->sim->ignoreAdetection == 1)
+    {
+        cudaFuncSetCacheConfig(MCMLKernel<1>, cudaFuncCachePreferL1);
+    }
+    else
+    {
+        cudaFuncSetCacheConfig(MCMLKernel<0>, cudaFuncCachePreferL1);
+    }
+#endif
 
     for (int i = 1; *HostMem->n_photons_left > 0; ++i)
     {
@@ -135,15 +136,17 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
         {
             MCMLKernel<0><<<dimGrid, dimBlock>>>(DeviceMem, tstates);
         }
-        CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
-        cudastat = cudaGetLastError();             // Check if there was an error
+        // Wait for all threads to finish.
+        CUDA_SAFE_CALL( cudaThreadSynchronize() );
+        // Check if there was an error
+        cudastat = cudaGetLastError();
         if (cudastat)
         {
             fprintf(stderr, "[GPU %u] failure in MCMLKernel (%i): %s.\n",
                     hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
             FreeHostSimState(HostMem);
             FreeDeviceSimStates(&DeviceMem, &tstates);
-            exit(1);
+            return;
         }
 
         // Copy the number of photons left from device to host.
@@ -151,8 +154,24 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                     DeviceMem.n_photons_left, sizeof(unsigned int),
                     cudaMemcpyDeviceToHost) );
 
-        printf("[GPU %u] batch %d, number of photons left %u\n",
+        printf("[GPU %u] batch %5d, number of photons left %10u\n",
                 hstate->dev_id, i, *(HostMem->n_photons_left));
+    }
+
+    // DAVID
+    // Sum the multiple copies of A_rz in the global memory.
+    sum_A_rz<<<256, 256>>>(DeviceMem.A_rz);
+    // Wait for all threads to finish.
+    CUDA_SAFE_CALL( cudaThreadSynchronize() );
+    // Check if there was an error
+    cudastat = cudaGetLastError();
+    if (cudastat)
+    {
+        fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
+                hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
+        FreeHostSimState(HostMem);
+        FreeDeviceSimStates(&DeviceMem, &tstates);
+        return;
     }
 
     printf("[GPU %u] simulation done!\n", hstate->dev_id);
@@ -160,8 +179,6 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     CopyDeviceToHostMem(HostMem, &DeviceMem, hstate->sim);
     FreeDeviceSimStates(&DeviceMem, &tstates);
     // We still need the host-side structure.
-	
-	//CUT_THREADEND;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -178,40 +195,23 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     printf("\n------------------------------------------------------------\n");
     printf("        Simulation #%d\n", sim_id);
     printf("        - number_of_photons = %u\n", simulation->number_of_photons);
-
-    // Compute GPU-specific constant parameters.
-    unsigned int A_rz_overflow = 0;
-    // We only need it if we care about A_rz.
-    if (! simulation->ignoreAdetection)
-    {
-        A_rz_overflow = compute_Arz_overflow_count(simulation->start_weight,
-                simulation->layers, simulation->n_layers);
-        printf("        - A_rz_overflow = %u\n", A_rz_overflow);
-    }
-
     printf("------------------------------------------------------------\n\n");
 
-    //Simulation kernel exec time
-     unsigned int execTimer = 0;
-     CUT_SAFE_CALL( cutCreateTimer( &execTimer));
-     CUT_SAFE_CALL( cutStartTimer(execTimer));
-
-//    clock_t time1,time2;
+    clock_t time1,time2;
     // Start the clock
-//    time1=clock();
+    time1=clock();
 
     // Distribute all photons among GPUs.
     unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
 
     // For each GPU, init the host-side structure.
-    HostThreadState * hstates [MAX_GPU_COUNT];
+    HostThreadState* hstates[num_GPUs];
     for (unsigned int i = 0; i < num_GPUs; ++i)
     {
         hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
 
         hstates[i]->dev_id = i;
         hstates[i]->sim = simulation;
-        hstates[i]->A_rz_overflow = A_rz_overflow;
 
         SimState *hss = &(hstates[i]->host_sim_state);
 
@@ -233,7 +233,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     }
 
     // Launch a dedicated host thread for each GPU.
-    CUTThread hthreads[MAX_GPU_COUNT];
+    CUTThread hthreads[num_GPUs];
     for (unsigned int i = 0; i < num_GPUs; ++i)
     {
         hthreads[i] = cutStartThread((CUT_THREADROUTINE)RunGPUi, hstates[i]);
@@ -280,17 +280,12 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
             }
         }
 
+        // End the timer.
+        time2=clock();
+        printf("\n*** Simulation time: %.3f sec\n\n",
+                (double)(time2-time1)/CLOCKS_PER_SEC);
 
- //        time2=clock();
-//        printf("\n*** Simulation time: %.3f sec\n",
-//                (double)(time2-time1)/CLOCKS_PER_SEC);
-
-        Write_Simulation_Results(hss0, simulation, (double)cutGetTimerValue(execTimer)/1000);
-        
-	CUT_SAFE_CALL( cutStopTimer(execTimer));
-        printf( "\n\n>>>>>>Simulation time: %f (ms)\n", cutGetTimerValue(execTimer));
-     	CUT_SAFE_CALL( cutDeleteTimer( execTimer));
-
+        Write_Simulation_Results(hss0, simulation, time2-time1);
     }
 
     // Free SimState structs.
@@ -306,26 +301,21 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
 int main(int argc, char* argv[])
 {
-    int i;
-    SimulationStruct* simulations;
-    int n_simulations;
+    char* filename = NULL;
     unsigned long long seed = (unsigned long long) time(NULL);
-    char* filename;
     int ignoreAdetection = 0;
     unsigned int num_GPUs = 1;
 
-    if (argc < 2)
-    {
-        printf("Not enough input arguments!\n");
-        print_usage();
-        return 1;
-    }
-    filename = argv[1];
+    SimulationStruct* simulations;
+    int n_simulations;
+
+    int i;
 
     // Parse command-line arguments.
-    if (interpret_arg(argc, argv, &seed, &ignoreAdetection, &num_GPUs))
+    if (interpret_arg(argc, argv, &filename,
+                &seed, &ignoreAdetection, &num_GPUs))
     {
-        print_usage();
+        usage(argv[0]);
         return 1;
     }
 
@@ -334,10 +324,9 @@ int main(int argc, char* argv[])
     CUDA_SAFE_CALL( cudaGetDeviceCount(&dev_count) );
     if (dev_count <= 0)
     {
-        fprintf(stderr, "No GPU available! Quit.\n");
+        fprintf(stderr, "No GPU available. Quit.\n");
         return 1;
     }
-    if (dev_count > MAX_GPU_COUNT) dev_count = MAX_GPU_COUNT;
 
     // Make sure we do not use more than what we have.
     if (num_GPUs > dev_count)
@@ -346,7 +335,15 @@ int main(int argc, char* argv[])
                 "what is available (%d)!\n", num_GPUs, dev_count);
         num_GPUs = (unsigned int)dev_count;
     }
-    printf("Using %u GPUs ...\n", num_GPUs);
+
+    // Output the execution configuration.
+    printf("\n====================================\n");
+    printf("EXECUTION MODE:\n");
+    printf("  ignore A-detection:      %s\n",
+            ignoreAdetection ? "YES" : "NO");
+    printf("  seed:                    %llu\n", seed);
+    printf("  # of GPUs:               %u\n", num_GPUs);
+    printf("====================================\n\n");
 
     // Read the simulation inputs.
     n_simulations = read_simulation_data(filename, &simulations,
