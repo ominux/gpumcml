@@ -39,7 +39,7 @@ int InitDCMem(SimulationStruct *sim)
     CUDA_SAFE_CALL( cudaMemcpyToSymbol(d_simparam,
                 &h_simparam, sizeof(SimParamGPU)) );
 
-    LayerStructGPU h_layerspecs[n_layers];
+    LayerStructGPU h_layerspecs[MAX_LAYERS];
 
     for (UINT32 i = 0; i < n_layers; ++i)
     {
