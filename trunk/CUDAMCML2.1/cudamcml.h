@@ -1,7 +1,7 @@
 #ifndef _CUDAMCML_H_
 #define _CUDAMCML_H_
 
-// Use the Mersenne Twister random number generator
+// Use Erik's random number generator
 // (as opposed to Tausworthe generator)
 // #define USE_MT_RNG
 
@@ -11,12 +11,12 @@
 //////////////////////////////////////////////////////////////////////////////
 
 // Various data types
-typedef float FLOAT;
 typedef unsigned long long UINT64;
 typedef unsigned int UINT32;
 
 // MCML constants
 #ifdef SINGLE_PRECISION
+typedef float FLOAT;
 
 #define WEIGHT 1E-4F        /* Critical weight for roulette. */
 
@@ -36,7 +36,7 @@ typedef unsigned int UINT32;
 #define FP_TWO  2.0F
 
 #else
-
+typedef double FLOAT;
 #define WEIGHT 1E-4     /* Critical weight for roulette. */
 
 // scaling factor for photon weight, which is then converted to integer
