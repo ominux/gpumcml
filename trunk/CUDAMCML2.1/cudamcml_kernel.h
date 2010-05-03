@@ -15,15 +15,27 @@
 
 // the number of simulation steps performed by each thread in one kernel
 //
-#define NUM_STEPS 5000
+#define NUM_STEPS 50000 //Use 5000 for faster response time
+
+// Multi-GPU support
+// Sets the maximum number of GPUs to 6 (assuming 3 dual-GPU cards - e.g., GTX 295)
+//
+#define MAX_GPU_COUNT 6
 
 // kernel execution configuration
 //
 #define NUM_BLOCKS 30
-#define NUM_THREADS_PER_BLOCK 512
+#define NUM_THREADS_PER_BLOCK 256  //512 for Fermi, 256 for GTX 280
 #define NUM_THREADS (NUM_BLOCKS * NUM_THREADS_PER_BLOCK)
 #define WARP_SZ 32
 #define NUM_WARPS_PER_BLK (NUM_THREADS_PER_BLOCK / WARP_SZ)
+
+// Use 32-bit atomic instructions and 32-bit shared memory
+// for pre-FERMI GPUs (e.g., GTX 280)
+//
+#define PRE_FERMI    
+//#define MAX_UINT32 4294967295
+#define MAX_OVERFLOW 3000000000 //MAX_UINT32 - some buffer room
 
 // Use 32-bit atomic instructions to do 64-bit atomicAdd
 // (for devices with compute capability 1.1)
@@ -39,8 +51,12 @@
 // The MAX_IR x MAX_IZ portion of the absorption array is cached in
 // shared memory. We need to tune this to maximally utilized the resources.
 //
-#define MAX_IR 24
-#define MAX_IZ 128
+
+#define MAX_IR 12
+#define MAX_IZ 128    //128 for Fermi, 64 for GTX 280
+
+//#define MAX_IR 24
+//#define MAX_IZ 64    //128 for Fermi, 64 for GTX 280
 
 // To reduce access conflicts to the absorption array <A_rz>, we allocate
 // multiple copies of <A_rz> in the global memory. We want to ensure that each
@@ -79,7 +95,7 @@ typedef struct __align__(16)
     FLOAT cos_crit0, cos_crit1;
 } LayerStructGPU;
 
-// The max number of layers supported (MAX_LAYERS-2 usable layers)
+// The max number of layers supported (MAX_LAYERS including 2 ambient layers)
 #define MAX_LAYERS 100
 
 __constant__ SimParamGPU d_simparam;

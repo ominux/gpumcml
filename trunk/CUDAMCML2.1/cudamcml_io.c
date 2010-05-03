@@ -102,9 +102,13 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t s
 	int i;
 
 	unsigned long long temp=0;
-    double scale1 = (double)(WEIGHT_SCALE)*(double)sim->number_of_photons;
+  double scale1 = (double)(WEIGHT_SCALE)*(double)sim->number_of_photons;
 	double scale2;
 
+	// Calculate and write RAT
+	unsigned long long Rd=0;	// Diffuse reflectance [-]
+	unsigned long long A=0;		// Absorbed fraction [-]
+	unsigned long long T=0;		// Transmittance [-]
 		
 	// Open the input and output files
 	pFile_inp = fopen (sim->inp_filename , "r");
@@ -140,12 +144,6 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t s
 
 	//printf("pos=%d\n",ftell(pFile_inp));
 	fclose(pFile_inp);
-	
-
-	// Calculate and write RAT
-	unsigned long long Rd=0;	// Diffuse reflectance [-]
-	unsigned long long A=0;		// Absorbed fraction [-]
-	unsigned long long T=0;		// Transmittance [-]
 
 	for(i=0;i<rz_size;i++)A+= HostMem->A_rz[i];
 	for(i=0;i<ra_size;i++){T += HostMem->Tt_ra[i];Rd += HostMem->Rd_ra[i];}
@@ -349,7 +347,8 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 
 	float ftemp[NFLOATS];//Find a more elegant way to do this...
 	int itemp[NINTS];
-
+  
+  double n1, n2, r;
 
 	pFile = fopen(filename , "r");
 	if (pFile == NULL){perror ("Error opening file");return 0;}
@@ -463,9 +462,9 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 		//printf("end=%d\n",(*simulations)[i].end);
 
 		//calculate start_weight
-		double n1=(*simulations)[i].layers[0].n;
-		double n2=(*simulations)[i].layers[1].n;
-		double r = (n1-n2)/(n1+n2);
+		n1=(*simulations)[i].layers[0].n;
+		n2=(*simulations)[i].layers[1].n;
+		r = (n1-n2)/(n1+n2);
 		r = r*r;
 		(*simulations)[i].start_weight = 1.0F - (float)r;
 
@@ -475,7 +474,8 @@ int read_simulation_data(char* filename, SimulationStruct** simulations, int ign
 
 void FreeSimulationStruct(SimulationStruct* sim, int n_simulations)
 {
-    for(int i=0;i<n_simulations;i++)free(sim[i].layers);
+    int i; 
+    for(i=0;i<n_simulations;i++)free(sim[i].layers);
     free(sim);
 }
 

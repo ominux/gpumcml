@@ -48,9 +48,20 @@
 #include <float.h> //for FLT_MAX 
 #include <stdio.h>
 
-#include <cutil.h>
 #include <cuda_runtime.h>
-#include "multithreading.h"
+
+#ifdef _WIN32 
+  #include "cudamcml_io.c"
+	#include "cutil-win32/cutil.h"
+#else 
+  #include <cutil.h>
+#endif
+
+#ifdef _WIN32 
+	#include "cutil-win32/multithreading.h"
+#else
+	#include "multithreading.h"
+#endif
 
 #include "cudamcml.h"
 #include "cudamcml_kernel.h"
@@ -81,7 +92,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        return;
+        exit(1); 
     }
 
     InitDCMem(hstate->sim);
@@ -93,7 +104,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        return;
+        exit(1); 
     }
 
     dim3 dimBlock(NUM_THREADS_PER_BLOCK);
@@ -109,7 +120,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        return;
+        exit(1); 
     }
 
     // DAVID
@@ -146,7 +157,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                     hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
             FreeHostSimState(HostMem);
             FreeDeviceSimStates(&DeviceMem, &tstates);
-            return;
+            exit(1); 
         }
 
         // Copy the number of photons left from device to host.
@@ -171,7 +182,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
         FreeHostSimState(HostMem);
         FreeDeviceSimStates(&DeviceMem, &tstates);
-        return;
+        exit(1); 
     }
 
     printf("[GPU %u] simulation done!\n", hstate->dev_id);
@@ -205,7 +216,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
 
     // For each GPU, init the host-side structure.
-    HostThreadState* hstates[num_GPUs];
+    HostThreadState* hstates[MAX_GPU_COUNT];
     for (unsigned int i = 0; i < num_GPUs; ++i)
     {
         hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
@@ -233,7 +244,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     }
 
     // Launch a dedicated host thread for each GPU.
-    CUTThread hthreads[num_GPUs];
+    CUTThread hthreads[MAX_GPU_COUNT];
     for (unsigned int i = 0; i < num_GPUs; ++i)
     {
         hthreads[i] = cutStartThread((CUT_THREADROUTINE)RunGPUi, hstates[i]);
