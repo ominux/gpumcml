@@ -9,8 +9,9 @@ GCC := g++
 CFLAGS=-m32 -Wall -O3
 LDFLAGS=-m32 -L/usr/local/cuda/lib -Lcutil-linux
 
-NVCC_FLAGS+=-m32 -O3 -DUNIX -keep -arch sm_20 -use_fast_math # -deviceemu
+NVCC_FLAGS+=-m32 -O3 -DUNIX -arch sm_20 -use_fast_math # -keep -deviceemu
 NVCC_FLAGS+=-maxrregcount 32
+NVCC_FLAGS+= -Xptxas -v
 NVCC_FLAGS+= -I/usr/local/cuda/include -Icutil-linux
 
 ######################################################################
