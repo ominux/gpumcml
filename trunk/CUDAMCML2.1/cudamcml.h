@@ -1,10 +1,6 @@
 #ifndef _CUDAMCML_H_
 #define _CUDAMCML_H_
 
-// Use Erik's random number generator
-// (as opposed to Tausworthe generator)
-#define USE_MT_RNG
-
 #define SINGLE_PRECISION
 
 //////////////////////////////////////////////////////////////////////////////
@@ -115,14 +111,8 @@ typedef struct
     // We put these arrays here as opposed to in GPUThreadStates because
     // they live across different simulation runs and must be copied back
     // to the host.
-#ifdef USE_MT_RNG
     UINT64 *x;
     UINT32 *a;
-#else
-    UINT32 *s1;
-    UINT32 *s2;
-    UINT32 *s3;
-#endif
 
     // output data
     UINT64* Rd_ra;

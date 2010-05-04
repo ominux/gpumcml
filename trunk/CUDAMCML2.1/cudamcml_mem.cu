@@ -96,7 +96,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
 
     // random number generation (on device only)
     size = NUM_THREADS * sizeof(UINT32);
-#ifdef USE_MT_RNG
+
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->a, size) );
     CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->a, HostMem->a, size,
                 cudaMemcpyHostToDevice) );
@@ -104,17 +104,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->x, size) );
     CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->x, HostMem->x, size,
                 cudaMemcpyHostToDevice) );
-#else
-    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s1, size) );
-    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s1, HostMem->s1, size,
-                cudaMemcpyHostToDevice) );
-    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s2, size) );
-    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s2, HostMem->s2, size,
-                cudaMemcpyHostToDevice) );
-    CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->s3, size) );
-    CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->s3, HostMem->s3, size,
-                cudaMemcpyHostToDevice) );
-#endif
+
 
     // Allocate A_rz on host and device
     size = rz_size * sizeof(UINT64);
@@ -181,9 +171,7 @@ int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem, SimulationStruct
     CUDA_SAFE_CALL( cudaMemcpy(HostMem->Tt_ra,DeviceMem->Tt_ra,ra_size*sizeof(UINT64),cudaMemcpyDeviceToHost) );
 
     //Also copy the state of the RNG's
-#ifdef USE_MT_RNG
     CUDA_SAFE_CALL( cudaMemcpy(HostMem->x,DeviceMem->x,NUM_THREADS*sizeof(UINT64),cudaMemcpyDeviceToHost) );
-#endif
 
     return 0;
 }
@@ -214,14 +202,10 @@ void FreeHostSimState(SimState *hstate)
 void FreeDeviceSimStates(SimState *dstate, GPUThreadStates *tstates)
 {
     cudaFree(dstate->n_photons_left); dstate->n_photons_left = NULL;
-#ifdef USE_MT_RNG
+
     cudaFree(dstate->x); dstate->x = NULL;
     cudaFree(dstate->a); dstate->a = NULL;
-#else
-    cudaFree(dstate->s1); dstate->s1 = NULL;
-    cudaFree(dstate->s2); dstate->s2 = NULL;
-    cudaFree(dstate->s3); dstate->s3 = NULL;
-#endif
+
     cudaFree(dstate->A_rz); dstate->A_rz = NULL;
     cudaFree(dstate->Rd_ra); dstate->Rd_ra = NULL;
     cudaFree(dstate->Tt_ra); dstate->Tt_ra = NULL;

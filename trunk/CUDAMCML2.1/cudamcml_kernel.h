@@ -1,4 +1,3 @@
-
 /*****************************************************************************
  *
  * Defines GPU-related data structures, and kernel configurations.
