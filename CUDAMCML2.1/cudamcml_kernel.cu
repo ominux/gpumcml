@@ -358,37 +358,17 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     last_ux = *ux;
     last_uy = *uy;
     last_uz = *uz;
-
-    // DAVID
-#if 0
-    if (fabsf(last_uz) > COSZERO)
-    {
-        /* normal incident. */
-        *ux = sint * cosp;
-        *uy = sint * sinp;
-        SIGN = ((last_uz) >= 0.0f ? 1.0f : -1.0f);
-        /* SIGN() is faster than division. */
-        //cost= //cost*SIGN; //copysignf (cost, last_uz);
-        //		*uz =copysignf (cost, last_uz*cost);;  //WHY do we need to multiply by cost to get right ans??
-        *uz = cost * SIGN;
-
-    } else { /* regular incident. */
-        temp = rsqrtf(1.0f - last_uz * last_uz);
-        *ux = sint * (last_ux * last_uz * cosp - last_uy * sinp) * temp
-            + last_ux * cost;
-        *uy = sint * (last_uy * last_uz * cosp + last_ux * sinp) * temp
-            + last_uy * cost;
-        *uz = __fdividef(-sint * cosp, temp) + last_uz * cost;
-    }
-#else
-    if (fabsf(last_uz) > COSZERO)
+   
+    if (fabsf(last_uz) > COSZERO) 
+    /* normal incident. */
     {
         *ux = stcp;
         *uy = stsp;
         SIGN = ((last_uz) >= MCML_FP_ZERO ? FP_ONE : -FP_ONE);
         *uz = cost * SIGN;
     }
-    else
+    else 
+    /* regular incident. */
     {
         temp = rsqrtf(FP_ONE - last_uz * last_uz);
         *ux = (stcp * last_ux * last_uz - stsp * last_uy) * temp
@@ -397,7 +377,6 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
             + last_uy * cost;
         *uz = __fdividef(-stcp, temp) + last_uz * cost;
     }
-#endif
 }
 
 /*****************************************************************************
