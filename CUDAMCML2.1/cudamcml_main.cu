@@ -169,21 +169,21 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
                 hstate->dev_id, i, *(HostMem->n_photons_left));
     }
 
-    // DAVID
-    // Sum the multiple copies of A_rz in the global memory.
-    sum_A_rz<<<256, 256>>>(DeviceMem.A_rz);
-    // Wait for all threads to finish.
-    CUDA_SAFE_CALL( cudaThreadSynchronize() );
-    // Check if there was an error
-    cudastat = cudaGetLastError();
-    if (cudastat)
-    {
-        fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
-                hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-        FreeHostSimState(HostMem);
-        FreeDeviceSimStates(&DeviceMem, &tstates);
-        exit(1); 
-    }
+    //// DAVID
+    //// Sum the multiple copies of A_rz in the global memory.
+    //sum_A_rz<<<30, 128>>>(DeviceMem.A_rz);
+    //// Wait for all threads to finish.
+    //CUDA_SAFE_CALL( cudaThreadSynchronize() );
+    //// Check if there was an error
+    //cudastat = cudaGetLastError();
+    //if (cudastat)
+    //{
+    //    fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
+    //            hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
+    //    FreeHostSimState(HostMem);
+    //    FreeDeviceSimStates(&DeviceMem, &tstates);
+    //    exit(1); 
+    //}
 
     printf("[GPU %u] simulation done!\n", hstate->dev_id);
 

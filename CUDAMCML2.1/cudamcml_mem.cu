@@ -125,7 +125,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
         exit(1);
     }
     // On the device, we allocate multiple copies for less access contention.
-    size *= N_A_RZ_COPIES;
+    //size *= N_A_RZ_COPIES;
     CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->A_rz, size) );
     CUDA_SAFE_CALL( cudaMemset(DeviceMem->A_rz, 0, size) );
 

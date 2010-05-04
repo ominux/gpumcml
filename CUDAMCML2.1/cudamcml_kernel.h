@@ -53,7 +53,7 @@
 //
 
 #define MAX_IR 12
-#define MAX_IZ 128    //128 for Fermi, 64 for GTX 280
+#define MAX_IZ 64    //128 for Fermi, 64 for GTX 280
 
 //#define MAX_IR 24
 //#define MAX_IZ 64    //128 for Fermi, 64 for GTX 280
