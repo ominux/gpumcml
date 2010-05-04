@@ -30,17 +30,13 @@
 #define WARP_SZ 32
 #define NUM_WARPS_PER_BLK (NUM_THREADS_PER_BLOCK / WARP_SZ)
 
-// Use 32-bit atomic instructions and 32-bit shared memory
-// for pre-FERMI GPUs (e.g., GTX 280)
-//
-#define PRE_FERMI    
-//#define MAX_UINT32 4294967295
-#define MAX_OVERFLOW 3000000000 //MAX_UINT32 - some buffer room
+// Uncomment for FERMI architecture 
+// If disabled, 32-bit atomic instructions are used to 
+// perform 64-bit atomicAdd to shared memory 
+// (used by pre-FERMI generation, e.g., GTX 280)
 
-// Use 32-bit atomic instructions to do 64-bit atomicAdd
-// (for devices with compute capability 1.1)
-//
-#define USE_ATOMICADD_ULL_CC1
+// #define FERMI
+
 
 // Configure the L1 cache to have 16KB of shared memory and
 // 48KB of hardware-managed cache.
@@ -52,17 +48,14 @@
 // shared memory. We need to tune this to maximally utilized the resources.
 //
 
-#define MAX_IR 12
+#define MAX_IR 24
 #define MAX_IZ 64    //128 for Fermi, 64 for GTX 280
-
-//#define MAX_IR 24
-//#define MAX_IZ 64    //128 for Fermi, 64 for GTX 280
 
 // To reduce access conflicts to the absorption array <A_rz>, we allocate
 // multiple copies of <A_rz> in the global memory. We want to ensure that each
 // SM works on a separate copy of A_rz.
 //
-#define N_A_RZ_COPIES 30
+//#define N_A_RZ_COPIES 30
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////

@@ -127,17 +127,19 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-// Add an UINT32eger to an UINT64
-// using CUDA Compute Capability 1.1
-__device__ void AtomicAddULL(UINT64* address, UINT32 add)
+// AtomicAdd to Shared Mem for Unsigned Long Long (ULL) data type
+// Note: Only Fermi architecture supports 64-bit atomicAdd to 
+// both shared memory and global memory 
+// 
+__device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
 {
-#ifdef USE_ATOMICADD_ULL_CC1
+#ifdef FERMI
+    atomicAdd(address, (UINT64)add);
+#else
     if (atomicAdd((UINT32*)address,add) +add < add)
     {
         atomicAdd(((UINT32*)address)+1, 1U);
     }
-#else
-    atomicAdd(address, (UINT64)add);
 #endif
 }
 
@@ -317,7 +319,7 @@ __device__ void FastReflectTransmit(FLOAT x, FLOAT y, SimState *d_state_ptr,
                 UINT32 ir = __fdividef(sqrtf(x*x+y*y), d_simparam.dr);
                 if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
 
-                AtomicAddULL(&ra_arr[ia * d_simparam.nr + ir],
+                atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
                         (UINT32)(*w * WEIGHT_SCALE));
 
                 // Kill the photon.
@@ -586,7 +588,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
                             {
                                 // Write it to the shared memory.
                                 last_addr = last_ir * MAX_IZ + last_iz;
-                                AtomicAddULL(&A_rz_shared[last_addr], last_w);
+                                AtomicAddULL_Shared(&A_rz_shared[last_addr], last_w);
                             }
                             else
 #endif
@@ -666,7 +668,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
         if (last_w > 0)
         {
             UINT32 global_addr = last_ir * d_simparam.nz + last_iz;
-            AtomicAddULL(&g_A_rz[global_addr], last_w);
+            atomicAdd(&g_A_rz[global_addr], last_w);
         }
 
 #ifndef USE_TRUE_CACHE
