@@ -58,23 +58,13 @@ __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
         FLOAT photon_x, FLOAT photon_y, FLOAT photon_z,
         FLOAT photon_ux, FLOAT photon_uy, FLOAT photon_uz,
         FLOAT photon_w, FLOAT photon_sleft, UINT32 photon_layer,
-#ifdef USE_MT_RNG
         UINT64 rnd_x, UINT32 rnd_a,
-#else
-        UINT64 rnd_s1, UINT32 rnd_s2, UINT32 rnd_s3,
-#endif
         UINT32 is_active)
 {
     UINT32 tid = blockIdx.x * NUM_THREADS_PER_BLOCK + threadIdx.x;
 
-#ifdef USE_MT_RNG
     d_state->x[tid] = rnd_x;
     d_state->a[tid] = rnd_a;
-#else
-    d_state->s1[tid] = rnd_s1;
-    d_state->s2[tid] = rnd_s2;
-    d_state->s3[tid] = rnd_s3;
-#endif
 
     tstates->photon_x[tid] = photon_x;
     tstates->photon_y[tid] = photon_y;
@@ -93,23 +83,13 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
         FLOAT *photon_x, FLOAT *photon_y, FLOAT *photon_z,
         FLOAT *photon_ux, FLOAT *photon_uy, FLOAT *photon_uz,
         FLOAT *photon_w, FLOAT *photon_sleft, UINT32 *photon_layer,
-#ifdef USE_MT_RNG
         UINT64 *rnd_x, UINT32 *rnd_a,
-#else
-        UINT32 *rnd_s1, UINT32 *rnd_s2, UINT32 *rnd_s3,
-#endif
         UINT32 *is_active)
 {
     UINT32 tid = blockIdx.x * NUM_THREADS_PER_BLOCK + threadIdx.x;
 
-#ifdef USE_MT_RNG
     *rnd_x = d_state->x[tid];
     *rnd_a = d_state->a[tid];
-#else
-    *rnd_s1 = d_state->s1[tid];
-    *rnd_s2 = d_state->s2[tid];
-    *rnd_s3 = d_state->s3[tid];
-#endif
 
     *photon_x = tstates->photon_x[tid];
     *photon_y = tstates->photon_y[tid];
@@ -152,21 +132,14 @@ __device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
  ****/
 __device__ void ComputeStepSize(UINT32 layer,
         FLOAT *s_ptr, FLOAT *sleft_ptr,
-#ifdef USE_MT_RNG
         UINT64 *rnd_x, UINT32 *rnd_a)
-#else
-        UINT32 *rnd_s1, UINT32 *rnd_s2, UINT32 *rnd_s3)
-#endif
 {
     // Make a new step if no leftover.
     FLOAT s = *sleft_ptr;
     if (s == MCML_FP_ZERO)
     {
-#ifdef USE_MT_RNG
         FLOAT rand = rand_MWC_oc(rnd_x, rnd_a);
-#else
-        FLOAT rand = Rand_Taus_nz(rnd_s1, rnd_s2, rnd_s3);
-#endif
+
         s = -__logf(rand);
     }
 
@@ -226,11 +199,7 @@ __device__ void Hop(FLOAT s, FLOAT ux, FLOAT uy, FLOAT uz,
 __device__ void FastReflectTransmit(FLOAT x, FLOAT y, SimState *d_state_ptr,
         FLOAT *ux, FLOAT *uy, FLOAT *uz,
         UINT32 *layer, FLOAT* w,
-#ifdef USE_MT_RNG
         UINT64 *rnd_x, UINT32 *rnd_a)
-#else
-        UINT32 *rnd_s1, UINT32 *rnd_s2, UINT32 *rnd_s3)
-#endif
 {
     /* Collect all info that depend on the sign of "uz". */
     FLOAT cos_crit;
@@ -287,11 +256,8 @@ __device__ void FastReflectTransmit(FLOAT x, FLOAT y, SimState *d_state_ptr,
         // In this case, we do not care if "uz1" is exactly 0.
         if (ca1 < COSNINETYDEG || sa2 == FP_ONE) rFresnel = FP_ONE;
 
-#ifdef USE_MT_RNG
         FLOAT rand = rand_MWC_co(rnd_x, rnd_a);
-#else
-        FLOAT rand = Rand_Taus(rnd_s1, rnd_s2, rnd_s3);
-#endif
+
         if (rFresnel < rand)
         {
             // The move is to transmit.
@@ -344,11 +310,7 @@ __device__ void FastReflectTransmit(FLOAT x, FLOAT y, SimState *d_state_ptr,
  *  	for pi-2pi sin(psi) is -
  ****/
 __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
-#ifdef USE_MT_RNG
         UINT64 *rnd_x, UINT32 *rnd_a)
-#else
-        UINT32 *rnd_s1, UINT32 *rnd_s2, UINT32 *rnd_s3)
-#endif
 {
     FLOAT cost, sint; // cosine and sine of the polar deflection angle theta
     FLOAT cosp, sinp; // cosine and sine of the azimuthal angle psi
@@ -371,11 +333,8 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
      *	Returns the cosine of the polar deflection angle theta.
      ****/
 
-#ifdef USE_MT_RNG
     rand = rand_MWC_co(rnd_x, rnd_a);
-#else
-    rand = Rand_Taus(rnd_s1, rnd_s2, rnd_s3);
-#endif
+
     cost = FP_TWO * rand - FP_ONE;
 
     if (g != MCML_FP_ZERO)
@@ -388,11 +347,8 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     sint = sqrtf(FP_ONE - cost * cost);
 
     /* spin psi 0-2pi. */
-#ifdef USE_MT_RNG
     rand = rand_MWC_co(rnd_x, rnd_a);
-#else
-    rand = Rand_Taus(rnd_s1, rnd_s2, rnd_s3);
-#endif
+
     psi = FP_TWO * PI_const * rand;
     __sincosf(psi, &sinp, &cosp);
 
@@ -474,12 +430,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     UINT32 photon_layer;
 
     // random number seeds
-#ifdef USE_MT_RNG
     UINT64 rnd_x;
     UINT32 rnd_a;
-#else
-    UINT32 rnd_s1, rnd_s2, rnd_s3;
-#endif
 
     // is this thread active?
     UINT32 is_active;
@@ -489,11 +441,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
             &photon_x, &photon_y, &photon_z,
             &photon_ux, &photon_uy, &photon_uz,
             &photon_w, &photon_sleft, &photon_layer,
-#ifdef USE_MT_RNG
             &rnd_x, &rnd_a,
-#else
-            &rnd_s1, &rnd_s2, &rnd_s3,
-#endif
             &is_active);
 
     //////////////////////////////////////////////////////////////////////////
@@ -534,11 +482,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
             //>>>>>>>>> StepSizeInTissue()
             ComputeStepSize(photon_layer, &photon_s, &photon_sleft,
-#ifdef USE_MT_RNG
                     &rnd_x, &rnd_a);
-#else
-                    &rnd_s1, &rnd_s2, &rnd_s3);
-#endif
 
             //>>>>>>>>> HitBoundary()
             UINT32 photon_hit = HitBoundary(photon_layer,
@@ -552,11 +496,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
                 FastReflectTransmit(photon_x, photon_y, &d_state,
                         &photon_ux, &photon_uy, &photon_uz,
                         &photon_layer, &photon_w,
-#ifdef USE_MT_RNG
                         &rnd_x, &rnd_a);
-#else
-                        &rnd_s1, &rnd_s2, &rnd_s3);
-#endif
             }
             else
             {
@@ -612,11 +552,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
                 Spin(d_layerspecs[photon_layer].g,
                         &photon_ux, &photon_uy, &photon_uz,
-#ifdef USE_MT_RNG
                         &rnd_x, &rnd_a);
-#else
-                        &rnd_s1, &rnd_s2, &rnd_s3);
-#endif
             }
 
             /***********************************************************
@@ -626,11 +562,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
              ****/
             if (photon_w < WEIGHT)
             {
-#ifdef USE_MT_RNG
                 FLOAT rand = rand_MWC_co(&rnd_x, &rnd_a);
-#else
-                FLOAT rand = Rand_Taus(&rnd_s1, &rnd_s2, &rnd_s3);
-#endif
+
                 if (photon_w != MCML_FP_ZERO && rand < CHANCE)
                 {
                     // Survive the roulette.
@@ -687,11 +620,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     SaveThreadState(&d_state, &tstates, photon_x, photon_y, photon_z,
             photon_ux, photon_uy, photon_uz, photon_w, photon_sleft,
             photon_layer,
-#ifdef USE_MT_RNG
             rnd_x, rnd_a,
-#else
-            rnd_s1, rnd_s2, rnd_s3,
-#endif
             is_active);
 }
 

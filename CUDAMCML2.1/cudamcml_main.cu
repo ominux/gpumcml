@@ -1,4 +1,4 @@
-/////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //		CUDA-based Monte Carlo simulation of photon migration in layered media (CUDAMCML).
 //	
@@ -28,7 +28,7 @@
 //			below). 
 //
 //
-///////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /*	This file is part of CUDAMCML.
 
@@ -197,11 +197,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 
 static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
         unsigned int num_GPUs,
-#ifdef USE_MT_RNG
         unsigned long long *x, unsigned int *a)
-#else
-        unsigned int *s1, unsigned int *s2, unsigned int *s3)
-#endif
 {
     printf("\n------------------------------------------------------------\n");
     printf("        Simulation #%d\n", sim_id);
@@ -236,11 +232,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
         // random number seeds
         unsigned int ofst = i * NUM_THREADS;
-#ifdef USE_MT_RNG
         hss->x = &x[ofst]; hss->a = &a[ofst];
-#else
-        hss->s1 = &s1[ofst]; hss->s2 = &s2[ofst]; hss->s3 = &s3[ofst];
-#endif
     }
 
     // Launch a dedicated host thread for each GPU.
@@ -368,37 +360,22 @@ int main(int argc, char* argv[])
 
     // Allocate and initialize RNG seeds (for all threads on all GPUs).
     unsigned int len = NUM_THREADS * num_GPUs;
-#ifdef USE_MT_RNG
+
     unsigned long long *x = (unsigned long long*)
         malloc(len * sizeof(unsigned long long));
     unsigned int *a = (unsigned int*)malloc(len * sizeof(unsigned int));
     if (init_RNG(x, a, len, "safeprimes_base32.txt", seed)) return 1;
-    printf("Using the Mersenne Twister random number generator ...\n");
-#else
-    unsigned int *s1 = (unsigned int*)malloc(len * sizeof(unsigned int));
-    unsigned int *s2 = (unsigned int*)malloc(len * sizeof(unsigned int));
-    unsigned int *s3 = (unsigned int*)malloc(len * sizeof(unsigned int));
-    init_Taus_seeds(s1, s2, s3, len);
-    printf("Using the Tausworthe random number generator ...\n");
-#endif
+    printf("Using the MWC random number generator ...\n");
 
     //perform all the simulations
     for(i=0;i<n_simulations;i++)
     {
         // Run a simulation
-#ifdef USE_MT_RNG
         DoOneSimulation(i, &simulations[i], num_GPUs, x, a);
-#else
-        DoOneSimulation(i, &simulations[i], num_GPUs, s1, s2, s3);
-#endif
     }
 
     // Free the random number seed arrays.
-#ifdef USE_MT_RNG
     free(x); free(a);
-#else
-    free(s1); free(s2); free(s3);
-#endif
 
     FreeSimulationStruct(simulations, n_simulations);
 
