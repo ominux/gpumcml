@@ -518,8 +518,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     //////////////////////////////////////////////////////////////////////////
 
     // Get the copy of A_rz (in the global memory) this thread writes to.
-    UINT64 *g_A_rz = d_state.A_rz
-        + (blockIdx.x % N_A_RZ_COPIES) * (d_simparam.nz * d_simparam.nr);
+    UINT64 *g_A_rz = d_state.A_rz; 
+    //    + (blockIdx.x % N_A_RZ_COPIES) * (d_simparam.nz * d_simparam.nr);
 
     //////////////////////////////////////////////////////////////////////////
 
@@ -697,27 +697,27 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-__global__ void sum_A_rz(UINT64 *g_A_rz)
-{
-    UINT64 sum;
-
-    int n_elems = d_simparam.nz * d_simparam.nr;
-    int base_ofst, ofst;
-
-    for (base_ofst = blockIdx.x * blockDim.x + threadIdx.x;
-            base_ofst < n_elems; base_ofst += blockDim.x * gridDim.x)
-    {
-        sum = 0;
-        ofst = base_ofst;
-#pragma unroll
-        for (int i = 0; i < N_A_RZ_COPIES; ++i)
-        {
-            sum += g_A_rz[ofst];
-            ofst += n_elems;
-        }
-        g_A_rz[base_ofst] = sum;
-    }
-}
+//__global__ void sum_A_rz(UINT64 *g_A_rz)
+//{
+//    UINT64 sum;
+//
+//    int n_elems = d_simparam.nz * d_simparam.nr;
+//    int base_ofst, ofst;
+//
+//    for (base_ofst = blockIdx.x * blockDim.x + threadIdx.x;
+//            base_ofst < n_elems; base_ofst += blockDim.x * gridDim.x)
+//    {
+//        sum = 0;
+//        ofst = base_ofst;
+//#pragma unroll
+//        for (int i = 0; i < N_A_RZ_COPIES; ++i)
+//        {
+//            sum += g_A_rz[ofst];
+//            ofst += n_elems;
+//        }
+//        g_A_rz[base_ofst] = sum;
+//    }
+//}
 
 #endif  // _CUDAMCML_KERNEL_CU_
 
