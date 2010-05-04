@@ -3,7 +3,7 @@
 
 // Use Erik's random number generator
 // (as opposed to Tausworthe generator)
-// #define USE_MT_RNG
+#define USE_MT_RNG
 
 #define SINGLE_PRECISION
 
