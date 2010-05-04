@@ -1,0 +1,74 @@
+####
+# Template of input files for Monte Carlo simulation (mcml).
+# Anything in a line after "#" is ignored as comments.
+# Space lines are also ignored.
+# Lengths are in cm, mua and mus are in 1/cm.
+# Tuchin et al. "Light scattering study of tissues"
+####
+
+1.0						# file version
+4						# number of runs
+
+### Specify data for run 1
+fivelayer_337nm_100K.mco	A		# output filename, ASCII/Binary
+100000						# No. of photons
+0.002	0.01					# dz, dr
+256	256	30				# No. of dz, dr & da.
+
+5						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.5	32	165	0.72	0.01		# layer 1: epidermis
+1.4	23	227	0.72	0.02		# layer 2: dermis
+1.4	40	246	0.72	0.02		# layer 3: dermis with plexus superficialis
+1.4	23	227	0.72	0.09		# layer 4: dermis
+1.4	46	253	0.72	0.06		# layer 5: dermis plexus profundus
+1.0						# n for medium below.
+
+### Specify data for run 1
+fivelayer_337nm_1M.mco	A			# output filename, ASCII/Binary
+1000000						# No. of photons
+0.002	0.01					# dz, dr
+256	256	30				# No. of dz, dr & da.
+
+5						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.5	32	165	0.72	0.01		# layer 1: epidermis
+1.4	23	227	0.72	0.02		# layer 2: dermis
+1.4	40	246	0.72	0.02		# layer 3: dermis with plexus superficialis
+1.4	23	227	0.72	0.09		# layer 4: dermis
+1.4	46	253	0.72	0.06		# layer 5: dermis plexus profundus
+1.0						# n for medium below.
+
+### Specify data for run 1
+fivelayer_337nm_10M.mco	A		# output filename, ASCII/Binary
+10000000					# No. of photons
+0.002	0.01					# dz, dr
+256	256	30				# No. of dz, dr & da.
+
+5						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.5	32	165	0.72	0.01		# layer 1: epidermis
+1.4	23	227	0.72	0.02		# layer 2: dermis
+1.4	40	246	0.72	0.02		# layer 3: dermis with plexus superficialis
+1.4	23	227	0.72	0.09		# layer 4: dermis
+1.4	46	253	0.72	0.06		# layer 5: dermis plexus profundus
+1.0						# n for medium below.
+
+### Specify data for run 1
+fivelayer_337nm_100M.mco	A		# output filename, ASCII/Binary
+100000000					# No. of photons
+0.002	0.01					# dz, dr
+256	256	30				# No. of dz, dr & da.
+
+5						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.5	32	165	0.72	0.01		# layer 1: epidermis
+1.4	23	227	0.72	0.02		# layer 2: dermis
+1.4	40	246	0.72	0.02		# layer 3: dermis with plexus superficialis
+1.4	23	227	0.72	0.09		# layer 4: dermis
+1.4	46	253	0.72	0.06		# layer 5: dermis plexus profundus
+1.0						# n for medium below.
