@@ -576,24 +576,23 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
                     // This will be ignored anyways.
                     if (iz < d_simparam.nz && ir < d_simparam.nr)
                     {
-                        UINT32 addr = ir * MAX_IZ + iz;
+                        UINT32 addr = ir * d_simparam.nz + iz;
 
                         if (addr != last_addr)
                         {
 #ifndef USE_TRUE_CACHE
                             // Commit the weight drop to memory.
-                            if (last_addr < MAX_IR * MAX_IZ)
+                            if (last_ir < MAX_IR && last_iz < MAX_IZ)
                             {
                                 // Write it to the shared memory.
+                                last_addr = last_ir * MAX_IZ + last_iz;
                                 AtomicAddULL(&A_rz_shared[last_addr], last_w);
                             }
                             else
 #endif
                             {
                                 // Write it to the global memory directly.
-                                last_addr = last_ir * d_simparam.nz + last_iz;
-                                atomicAdd(&g_A_rz[last_addr],
-                                        (UINT64)last_w);
+                                atomicAdd(&g_A_rz[last_addr], (UINT64)last_w);
                             }
 
                             last_ir = ir; last_iz = iz;
