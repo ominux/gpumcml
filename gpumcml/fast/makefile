@@ -22,7 +22,7 @@ default: clean $(PROG_CUDA)
 ######################################################################
 
 $(PROG_CUDA): $(PROG_CUDA).cu_o gpumcml_io.o
-	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -lcutil
+	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -lcutil_i386
 
 $(PROG_CUDA).cu_o: $(PROG_CUDA)_main.cu
 	$(NVCC) $(NVCC_FLAGS) -o $@ -c $<
