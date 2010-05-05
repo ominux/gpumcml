@@ -21,8 +21,8 @@
  */
 
 
-#ifndef _CUDAMCML_H_
-#define _CUDAMCML_H_
+#ifndef _GPUMCML_H_
+#define _GPUMCML_H_
 
 #define SINGLE_PRECISION
 
@@ -183,4 +183,4 @@ extern int Write_Simulation_Results(SimState* HostMem,
 
 extern void FreeSimulationStruct(SimulationStruct* sim, int n_simulations);
 
-#endif  // _CUDAMCML_H_
+#endif  // _GPUMCML_H_

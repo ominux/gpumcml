@@ -25,8 +25,8 @@
 *   along with GPUMCML.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef _CUDAMCML_KERNEL_CU_
-#define _CUDAMCML_KERNEL_CU_
+#ifndef _GPUMCML_KERNEL_CU_
+#define _GPUMCML_KERNEL_CU_
 
 #include "gpumcml_kernel.h"
 #include "gpumcml_rng.cu"
@@ -648,5 +648,5 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 //    }
 //}
 
-#endif  // _CUDAMCML_KERNEL_CU_
+#endif  // _GPUMCML_KERNEL_CU_
 

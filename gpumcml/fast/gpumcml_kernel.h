@@ -20,8 +20,8 @@
  *   along with GPUMCML.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef _CUDAMCML_KERNEL_H_
-#define _CUDAMCML_KERNEL_H_
+#ifndef _GPUMCML_KERNEL_H_
+#define _GPUMCML_KERNEL_H_
 
 #include "gpumcml.h"
 
@@ -137,5 +137,5 @@ typedef struct
   UINT32 *is_active;          // is this thread active?
 } GPUThreadStates;
 
-#endif // _CUDAMCML_KERNEL_H_
+#endif // _GPUMCML_KERNEL_H_
 
