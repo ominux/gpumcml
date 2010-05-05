@@ -45,12 +45,13 @@ Sets the maximum number of GPUs to 6 (assuming 3 dual-GPU cards - e.g., GTX 295)
 #define WARP_SZ 32
 #define NUM_WARPS_PER_BLK (NUM_THREADS_PER_BLOCK / WARP_SZ)
 
-/*  Uncomment for FERMI architecture 
-If disabled, 32-bit atomic instructions are used to 
-perform 64-bit atomicAdd to shared memory 
-(used by pre-FERMI generation, e.g., GTX 280)
+/*  Uncomment for old architecture (compute capability 1.1)
+If enabled, 32-bit atomic instructions are used to 
+perform/emulate 64-bit atomicAdd to global memory 
+Check the NVIDIA programming guide to see what compute 
+capability your graphics card supports
 */
-// #define FERMI
+// #define EMULATED_ATOMIC
 
 /* Configure the L1 cache to have 16KB of shared memory and
 48KB of hardware-managed cache.
