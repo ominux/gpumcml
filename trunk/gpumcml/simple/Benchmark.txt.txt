@@ -1,0 +1,48 @@
+=======================================================
+|| Effect of simplification (removing optimizations) 
+=======================================================
+
+|| GPU Benchmark simulation parameters: 
+-------------------------------------------------------
+Benchmark input file: 7layerskin_600nm.mci 
+Number of photons: 10M photons 
+#define NUM_BLOCKS 30
+#define NUM_THREADS_PER_BLOCK 256  
+#define NUM_STEPS 50000  
+#define SINGLE_PRECISION
+
+|| GPU Benchmark platform: 
+-------------------------------------------------------
+Graphics card: GeForce GTX 280 
+OS: Win7 
+Compiler: Visual Studio 2008 
+Compiler flags: -arch sm_12
+CUDA version: 3.0
+
+|| CPU Benchmark platform: 
+-------------------------------------------------------
+Intel Xeon 5160 processor (3 GHz dual-core, 4MB cache) 
+gcc 4.1.2 (-O3)
+
+|| CPU Benchmark parameters: 
+-------------------------------------------------------
+Benchmark input file: 7layerskin_600nm.mci 
+Number of photons: 10M photons 
+
+|| CPU Performance Baseline: 
+-------------------------------------------------------
+Simulation Time: 2136 seconds (1x)
+
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+
+|| GPU Performance Results: 
+-------------------------------------------------------
+NOTE: All of the following measurements are based on 1 
+simulation run, but they should be accurate up to the 
+first decimal place. 
+
+0) Original (gpumcml/fast): 7.74 s --> ~7.7 s
+1) Removing shared cache: 13 s

@@ -2,10 +2,10 @@
 *
 *   Kernel code for GPUMCML
 *   =========================================================================
-*   Featured Optimizations: 
-*   1) Shared memory cache for high fluence region  
-*   2) Reduced divergence 
-*   3) Optimized atomicAdd
+*   Features: 
+*   1) Backwards compatible with older graphics card (compute capability 1.1)
+*      using emulated atomicAdd (AtomicAddULL) enabled by EMULATED_ATOMIC flag
+*      See <gpumcml_kernel.h>.
 *
 ****************************************************************************/
 /*	 
@@ -30,6 +30,23 @@
 
 #include "gpumcml_kernel.h"
 #include "gpumcml_rng.cu"
+
+//////////////////////////////////////////////////////////////////////////////
+//   AtomicAdd for Unsigned Long Long (ULL) data type
+//   Note: 64-bit atomicAdd to global memory are only supported 
+//   in graphics card with compute capability 1.2 or above
+//////////////////////////////////////////////////////////////////////////////
+__device__ void AtomicAddULL(UINT64* address, UINT32 add)
+{
+#ifdef EMULATED_ATOMIC
+  if (atomicAdd((UINT32*)address,add) +add < add)
+  {
+    atomicAdd(((UINT32*)address)+1, 1U);
+  }
+#else
+  atomicAdd(address, (UINT64)add);
+#endif
+}
 
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize photon position (x, y, z), direction (ux, uy, uz), weight (w), 
@@ -206,7 +223,7 @@ __device__ void FastReflectTransmit(FLOAT x, FLOAT y, SimState *d_state_ptr,
         UINT32 ir = __fdividef(sqrtf(x*x+y*y), d_simparam.dr);
         if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
 
-        atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
+        AtomicAddULL(&ra_arr[ia * d_simparam.nr + ir],
           (UINT32)(*w * WEIGHT_SCALE));
 
         // Kill the photon.
@@ -383,37 +400,6 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// Flush the element at offset <shared_addr> of A_rz in shared memory (s_A_rz)
-// to the global memory (g_A_rz). <s_A_rz> is of dimension MAX_IR x MAX_IZ.
-//////////////////////////////////////////////////////////////////////////////
-__device__ void Flush_Arz(UINT64 *g_A_rz,
-                          UINT64 *s_A_rz, UINT32 shared_addr)
-{
-  UINT32 ir = shared_addr / MAX_IZ;
-  UINT32 iz = shared_addr - ir * MAX_IZ;
-  UINT32 global_addr = ir * d_simparam.nz + iz;
-
-  atomicAdd(&g_A_rz[global_addr], s_A_rz[shared_addr]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//   AtomicAdd to Shared Mem for Unsigned Long Long (ULL) data type
-//   Note: Only Fermi architecture supports 64-bit atomicAdd to 
-//   both shared memory and global memory 
-//////////////////////////////////////////////////////////////////////////////
-__device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
-{
-#ifdef FERMI
-  atomicAdd(address, (UINT64)add);
-#else
-  if (atomicAdd((UINT32*)address,add) +add < add)
-  {
-    atomicAdd(((UINT32*)address)+1, 1U);
-  }
-#endif
-}
-
-//////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////
@@ -449,21 +435,6 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
   // Coalesce consecutive weight drops to the same address.
   UINT32 last_w = 0;
   UINT32 last_ir = 0, last_iz = 0, last_addr = 0;
-
-  //////////////////////////////////////////////////////////////////////////
-
-#ifndef USE_TRUE_CACHE
-  // Cache the frequently acessed region of A_rz in the shared memory.
-  __shared__ UINT64 A_rz_shared[MAX_IR*MAX_IZ];
-
-  if (ignoreAdetection == 0)
-  {
-    // Clear the cache.
-    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ;
-      i += NUM_THREADS_PER_BLOCK) A_rz_shared[i] = 0;
-      __syncthreads();
-  }
-#endif
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -522,20 +493,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
             if (addr != last_addr)
             {
-#ifndef USE_TRUE_CACHE
-              // Commit the weight drop to memory.
-              if (last_ir < MAX_IR && last_iz < MAX_IZ)
-              {
-                // Write it to the shared memory.
-                last_addr = last_ir * MAX_IZ + last_iz;
-                AtomicAddULL_Shared(&A_rz_shared[last_addr], last_w);
-              }
-              else
-#endif
-              {
-                // Write it to the global memory directly.
-                atomicAdd(&g_A_rz[last_addr], (UINT64)last_w);
-              }
+              // Write to the global memory.
+              AtomicAddULL(&g_A_rz[last_addr], (UINT64)last_w);
 
               last_ir = ir; last_iz = iz;
               last_addr = addr;
@@ -600,17 +559,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     if (last_w > 0)
     {
       UINT32 global_addr = last_ir * d_simparam.nz + last_iz;
-      atomicAdd(&g_A_rz[global_addr], last_w);
+      AtomicAddULL(&g_A_rz[global_addr], last_w);
     }
-
-#ifndef USE_TRUE_CACHE
-    // Flush A_rz_shared to the global memory.
-    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ;
-      i += NUM_THREADS_PER_BLOCK)
-    {
-      Flush_Arz(g_A_rz, A_rz_shared, i);
-    }
-#endif
   }
 
   //////////////////////////////////////////////////////////////////////////
@@ -625,28 +575,5 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
-
-//__global__ void sum_A_rz(UINT64 *g_A_rz)
-//{
-//    UINT64 sum;
-//
-//    int n_elems = d_simparam.nz * d_simparam.nr;
-//    int base_ofst, ofst;
-//
-//    for (base_ofst = blockIdx.x * blockDim.x + threadIdx.x;
-//            base_ofst < n_elems; base_ofst += blockDim.x * gridDim.x)
-//    {
-//        sum = 0;
-//        ofst = base_ofst;
-//#pragma unroll
-//        for (int i = 0; i < N_A_RZ_COPIES; ++i)
-//        {
-//            sum += g_A_rz[ofst];
-//            ofst += n_elems;
-//        }
-//        g_A_rz[base_ofst] = sum;
-//    }
-//}
-
 #endif  // _GPUMCML_KERNEL_CU_
 
