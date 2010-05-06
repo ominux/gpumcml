@@ -24,8 +24,6 @@
 #ifndef _GPUMCML_H_
 #define _GPUMCML_H_
 
-#define SINGLE_PRECISION
-
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
@@ -34,7 +32,6 @@ typedef unsigned long long UINT64;
 typedef unsigned int UINT32;
 
 // MCML constants
-#ifdef SINGLE_PRECISION
 typedef float FLOAT;
 
 // Critical weight for roulette
@@ -54,29 +51,6 @@ typedef float FLOAT;
 #define MCML_FP_ZERO 0.0F
 #define FP_ONE  1.0F
 #define FP_TWO  2.0F
-
-#else
-typedef double FLOAT;
-
-// Critical weight for roulette
-#define WEIGHT 1E-4     
-
-// scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE 12000000
-
-#define PI_const 3.1415926
-#define RPI 0.318309886
-
-//NOTE: Double Precision
-#define COSNINETYDEG 1.0E-6
-#define COSZERO (1.0 - 1.0E-12)    
-#define CHANCE 0.1
-
-#define MCML_FP_ZERO 0.0
-#define FP_ONE  1.0
-#define FP_TWO  2.0
-
-#endif
 
 #define STR_LEN 200
 

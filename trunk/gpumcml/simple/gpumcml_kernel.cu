@@ -7,6 +7,7 @@
 *      using emulated atomicAdd (AtomicAddULL) enabled by EMULATED_ATOMIC flag
 *      See <gpumcml_kernel.h>.
 *   2) Simplified function parameter list with PhotonStructGPU 
+*   3) Simplified Drop code (no atomic access optimizations)
 ****************************************************************************/
 /*	 
 *   This file is part of GPUMCML.
