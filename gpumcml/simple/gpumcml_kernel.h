@@ -138,5 +138,30 @@ typedef struct
   UINT32 *is_active;          // is this thread active?
 } GPUThreadStates;
 
+
+typedef struct
+{
+  // cartesian coordinates of the photon [cm]
+  FLOAT x;
+  FLOAT y;
+  FLOAT z;
+
+  // directional cosines of the photon
+  FLOAT ux;
+  FLOAT uy;
+  FLOAT uz;
+
+  FLOAT w;            // photon weight
+
+  FLOAT s;            // step size [cm]
+  FLOAT sleft;        // leftover step size [cm]
+
+  // index to layer where the photon resides
+  UINT32 layer;
+
+  // flag to indicate if photon hits a boundary
+  UINT32 hit;
+} PhotonStructGPU;
+
 #endif // _GPUMCML_KERNEL_H_
 
