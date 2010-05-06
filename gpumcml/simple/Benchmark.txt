@@ -46,5 +46,6 @@ first decimal place.
 
 0) Original (gpumcml/fast): 7.74 s --> ~7.7 s
 1) Removing shared cache: 13 s
-2) Removing multi-GPU support: 12.9
-3) Reinstating PhotonStruct: 12.9 !! (No significant difference)
+2) Removing multi-GPU support: 12.9 s
+3) Reinstating PhotonStruct: 12.9 s !! (No significant difference)
+4) Removing last_addr register: 23.3 s

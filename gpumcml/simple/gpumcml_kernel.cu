@@ -405,17 +405,6 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
   //////////////////////////////////////////////////////////////////////////
 
-  // Coalesce consecutive weight drops to the same address.
-  UINT32 last_w = 0;
-  UINT32 last_ir = 0, last_iz = 0, last_addr = 0;
-
-  //////////////////////////////////////////////////////////////////////////
-
-  // Simplify the code using a direct pointer to the global memory
-  UINT64 *g_A_rz = d_state.A_rz; 
-
-  //////////////////////////////////////////////////////////////////////////
-
   for (int iIndex = 0; iIndex < NUM_STEPS; ++iIndex)
   {
     // Only process photon if the thread is active.
@@ -435,12 +424,13 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       }
       else
       {
-        //>>>>>>>>> Drop() in MCML
-        FLOAT dwa = photon.w * d_layerspecs[photon.layer].mua_muas;
-        photon.w -= dwa;
-
+        // If scoring of absorption is specified (no -A flag in command line)
         if (ignoreAdetection == 0)
         {
+          //>>>>>>>>> Drop() in MCML
+          FLOAT dwa = photon.w * d_layerspecs[photon.layer].mua_muas;
+          photon.w -= dwa;
+
           UINT32 iz = __fdividef(photon.z, d_simparam.dz);
           UINT32 ir = __fdividef(
             sqrtf(photon.x * photon.x + photon.y * photon.y),
@@ -451,21 +441,11 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
           if (iz < d_simparam.nz && ir < d_simparam.nr)
           {
             UINT32 addr = ir * d_simparam.nz + iz;
+            // Simplify the code using a direct pointer to the global memory
+            UINT64 *g_A_rz = d_state.A_rz; 
 
-            if (addr != last_addr)
-            {
-              // Write to the global memory.
-              AtomicAddULL(&g_A_rz[last_addr], (UINT64)last_w);
-
-              last_ir = ir; last_iz = iz;
-              last_addr = addr;
-
-              // Reset the last weight.
-              last_w = 0;
-            }
-
-            // Accumulate to the last weight.
-            last_w += (UINT32)(dwa * WEIGHT_SCALE);
+            // Write to the global memory.
+            AtomicAddULL(&g_A_rz[addr], (UINT64)(dwa * WEIGHT_SCALE));
           }
         }
         //>>>>>>>>> end of Drop()
@@ -498,19 +478,6 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
   } // end of the main loop
 
   __syncthreads();
-
-  //////////////////////////////////////////////////////////////////////////
-
-  if (ignoreAdetection == 0)
-  {
-    // Commit the last weight drop to the global memory directly.
-    // NOTE: last_w == 0 if inactive.
-    if (last_w > 0)
-    {
-      UINT32 global_addr = last_ir * d_simparam.nz + last_iz;
-      AtomicAddULL(&g_A_rz[global_addr], last_w);
-    }
-  }
 
   //////////////////////////////////////////////////////////////////////////
 
