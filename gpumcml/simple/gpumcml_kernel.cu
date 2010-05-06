@@ -123,6 +123,30 @@ __device__ void Hop(PhotonStructGPU *photon)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+//   Drop a part of the weight of the photon to simulate absorption
+//////////////////////////////////////////////////////////////////////////////
+__device__ void Drop(PhotonStructGPU *photon, UINT64 *g_A_rz)
+{
+
+  FLOAT dwa = photon->w * d_layerspecs[photon->layer].mua_muas;
+  photon->w -= dwa;
+
+  UINT32 iz = __fdividef(photon->z, d_simparam.dz);
+  UINT32 ir = __fdividef(sqrtf(photon->x * photon->x + photon->y * photon->y),d_simparam.dr);
+
+  // Only record if photon is not at the edge!!
+  // This will be ignored anyways.
+  if (iz < d_simparam.nz && ir < d_simparam.nr)
+  {
+    UINT32 addr = ir * d_simparam.nz + iz;
+
+    // Write to the global memory.
+    AtomicAddULL(&g_A_rz[addr], (UINT64)(dwa * WEIGHT_SCALE));
+  }
+
+}
+
+//////////////////////////////////////////////////////////////////////////////
 //   UltraFast version (featuring reduced divergence compared to CPU-MCML)
 //   If a photon hits a boundary, determine whether the photon is transmitted
 //   into the next layer or reflected back by computing the internal reflectance
@@ -419,36 +443,12 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       Hop(&photon);
 
       if (photon.hit)
-      {
         FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
-      }
       else
       {
         // If scoring of absorption is specified (no -A flag in command line)
         if (ignoreAdetection == 0)
-        {
-          //>>>>>>>>> Drop() in MCML
-          FLOAT dwa = photon.w * d_layerspecs[photon.layer].mua_muas;
-          photon.w -= dwa;
-
-          UINT32 iz = __fdividef(photon.z, d_simparam.dz);
-          UINT32 ir = __fdividef(
-            sqrtf(photon.x * photon.x + photon.y * photon.y),
-            d_simparam.dr);
-
-          // Only record if photon is not at the edge!!
-          // This will be ignored anyways.
-          if (iz < d_simparam.nz && ir < d_simparam.nr)
-          {
-            UINT32 addr = ir * d_simparam.nz + iz;
-            // Simplify the code using a direct pointer to the global memory
-            UINT64 *g_A_rz = d_state.A_rz; 
-
-            // Write to the global memory.
-            AtomicAddULL(&g_A_rz[addr], (UINT64)(dwa * WEIGHT_SCALE));
-          }
-        }
-        //>>>>>>>>> end of Drop()
+            Drop (&photon, d_state.A_rz); 
 
         Spin(d_layerspecs[photon.layer].g, &photon, &rnd_x, &rnd_a);
       }
