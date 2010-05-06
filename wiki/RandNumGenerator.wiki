@@ -1,0 +1,6 @@
+#summary How the Random Number Generator Works
+
+== Introduction ==
+
+
+== Algorithm ==
