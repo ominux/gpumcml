@@ -153,9 +153,6 @@ typedef struct
 // one GPU (host-side only)
 typedef struct
 {
-  // GPU identifier
-  unsigned int dev_id;        
-
   // those states that will be updated
   SimState host_sim_state;
 
@@ -173,7 +170,7 @@ extern void usage(const char *prog_name);
 // Return 0 if successfull or a +ive error code.
 extern int interpret_arg(int argc, char* argv[], char **fpath_p,
         unsigned long long* seed,
-        int* ignoreAdetection, unsigned int *num_GPUs);
+        int* ignoreAdetection);
 
 extern int read_simulation_data(char* filename,
         SimulationStruct** simulations, int ignoreAdetection);

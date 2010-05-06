@@ -16,7 +16,7 @@
 //	 users/programmers to utilize the power of GPGPU for their simulation needs. While we
 //	 don't have a scientifc publication describing this code, we would very much appreciate
 //	 if you cite our original GPGPU Monte Carlo letter (on which GPUMCML is based) if you 
-//	 use this code or derivations thereof for your own scientifc work:
+//	 use this code or derivations thereof for your own scientific work:
 //	 E. Alerstam, T. Svensson and S. Andersson-Engels, "Parallel computing with graphics processing
 //	 units for high-speed Monte Carlo simulations of photon migration", Journal of Biomedical Optics
 //	 Letters, 13(6) 060504 (2008).
@@ -76,10 +76,10 @@
 //////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////
-//   Supports multiple GPUs by allowing multiple host threads to launch kernel
-//   Each thread calls RunGPUi with its own HostThreadState parameters
+//   Supports 1 GPU only
+//   Calls RunGPU with HostThreadState parameters
 //////////////////////////////////////////////////////////////////////////////
-static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
+static void RunGPUi(HostThreadState *hstate)
 {
   SimState *HostMem = &(hstate->host_sim_state);
   SimState DeviceMem;
@@ -87,50 +87,17 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 
   cudaError_t cudastat;
 
-  CUDA_SAFE_CALL( cudaSetDevice(hstate->dev_id) );
-
   // Init the remaining states.
   InitSimStates(HostMem, &DeviceMem, &tstates, hstate->sim);
-  CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
-  cudastat=cudaGetLastError(); // Check if there was an error
-  if (cudastat)
-  {
-    fprintf(stderr, "[GPU %u] failure in InitSimStates (%i): %s\n",
-      hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-    FreeHostSimState(HostMem);
-    FreeDeviceSimStates(&DeviceMem, &tstates);
-    exit(1); 
-  }
 
   InitDCMem(hstate->sim);
-  CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
-  cudastat=cudaGetLastError(); // Check if there was an error
-  if (cudastat)
-  {
-    fprintf(stderr, "[GPU %u] failure in InitDCMem (%i): %s\n",
-      hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-    FreeHostSimState(HostMem);
-    FreeDeviceSimStates(&DeviceMem, &tstates);
-    exit(1); 
-  }
 
   dim3 dimBlock(NUM_THREADS_PER_BLOCK);
   dim3 dimGrid(NUM_BLOCKS);
 
   // Initialize the remaining thread states.
   InitThreadState<<<dimGrid,dimBlock>>>(tstates);
-  CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
-  cudastat=cudaGetLastError(); // Check if there was an error
-  if (cudastat)
-  {
-    fprintf(stderr, "[GPU %u] failure in InitThreadState (%i): %s\n",
-      hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-    FreeHostSimState(HostMem);
-    FreeDeviceSimStates(&DeviceMem, &tstates);
-    exit(1); 
-  }
 
-  // DAVID
   // Configure the L1 cache for Fermi.
 #ifdef USE_TRUE_CACHE
   if (hstate->sim->ignoreAdetection == 1)
@@ -154,14 +121,12 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     {
       MCMLKernel<0><<<dimGrid, dimBlock>>>(DeviceMem, tstates);
     }
-    // Wait for all threads to finish.
-    CUDA_SAFE_CALL( cudaThreadSynchronize() );
+
     // Check if there was an error
     cudastat = cudaGetLastError();
     if (cudastat)
     {
-      fprintf(stderr, "[GPU %u] failure in MCMLKernel (%i): %s.\n",
-        hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
+      fprintf(stderr, "[GPU] failure in MCMLKernel (%i): %s.\n",cudastat, cudaGetErrorString(cudastat));
       FreeHostSimState(HostMem);
       FreeDeviceSimStates(&DeviceMem, &tstates);
       exit(1); 
@@ -172,27 +137,10 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
       DeviceMem.n_photons_left, sizeof(unsigned int),
       cudaMemcpyDeviceToHost) );
 
-    printf("[GPU %u] batch %5d, number of photons left %10u\n",
-      hstate->dev_id, i, *(HostMem->n_photons_left));
+    printf("[GPU] batch %5d, number of photons left %10u\n",i, *(HostMem->n_photons_left));
   }
 
-  //// DAVID
-  //// Sum the multiple copies of A_rz in the global memory.
-  //sum_A_rz<<<30, 128>>>(DeviceMem.A_rz);
-  //// Wait for all threads to finish.
-  //CUDA_SAFE_CALL( cudaThreadSynchronize() );
-  //// Check if there was an error
-  //cudastat = cudaGetLastError();
-  //if (cudastat)
-  //{
-  //    fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
-  //            hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-  //    FreeHostSimState(HostMem);
-  //    FreeDeviceSimStates(&DeviceMem, &tstates);
-  //    exit(1); 
-  //}
-
-  printf("[GPU %u] simulation done!\n", hstate->dev_id);
+  printf("[GPU] simulation done!\n");
 
   CopyDeviceToHostMem(HostMem, &DeviceMem, hstate->sim);
   FreeDeviceSimStates(&DeviceMem, &tstates);
@@ -203,7 +151,6 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 //   Perform MCML simulation for one run out of N runs (in the input file)
 //////////////////////////////////////////////////////////////////////////////
 static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
-                            unsigned int num_GPUs,
                             unsigned long long *x, unsigned int *a)
 {
   printf("\n------------------------------------------------------------\n");
@@ -212,98 +159,37 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   printf("------------------------------------------------------------\n\n");
 
   clock_t time1,time2;
+
   // Start the clock
   time1=clock();
 
-  // Distribute all photons among GPUs.
-  unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
-
   // For each GPU, init the host-side structure.
-  HostThreadState* hstates[MAX_GPU_COUNT];
-  for (unsigned int i = 0; i < num_GPUs; ++i)
-  {
-    hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
+  HostThreadState* hstates;
+  hstates = (HostThreadState*)malloc(sizeof(HostThreadState));
 
-    hstates[i]->dev_id = i;
-    hstates[i]->sim = simulation;
+  hstates->sim = simulation;
 
-    SimState *hss = &(hstates[i]->host_sim_state);
+  SimState *hss = &(hstates->host_sim_state);
 
-    // number of photons responsible 
-    hss->n_photons_left = (unsigned int*)malloc(sizeof(unsigned int));
-    // The last GPU may be responsible for more photons if the
-    // distribution is uneven.
-    *(hss->n_photons_left) = (i == num_GPUs-1) ?
-      simulation->number_of_photons - (num_GPUs-1) * n_photons_per_GPU :
-    n_photons_per_GPU;
+  // number of photons responsible 
+  hss->n_photons_left = (unsigned int*)malloc(sizeof(unsigned int));
+  *(hss->n_photons_left) = simulation->number_of_photons; 
 
-    // random number seeds
-    unsigned int ofst = i * NUM_THREADS;
-    hss->x = &x[ofst]; hss->a = &a[ofst];
-  }
+  // random number seeds
+  hss->x = &x[0]; hss->a = &a[0];
 
-  // Launch a dedicated host thread for each GPU.
-  CUTThread hthreads[MAX_GPU_COUNT];
-  for (unsigned int i = 0; i < num_GPUs; ++i)
-  {
-    hthreads[i] = cutStartThread((CUT_THREADROUTINE)RunGPUi, hstates[i]);
-  }
+  // Launch simulation
+  RunGPUi (hstates);
 
-  // Wait for all host threads to finish.
-  cutWaitForThreads(hthreads, num_GPUs);
+  // End the timer.
+  time2=clock();
+  printf("\n*** Simulation time: %.3f sec\n\n",(double)(time2-time1)/CLOCKS_PER_SEC);
 
-
-  // Check any of the threads failed.
-  int failed = 0;
-  for (unsigned int i = 0; i < num_GPUs && !failed; ++i)
-  {
-    if (hstates[i]->host_sim_state.n_photons_left == NULL) failed = 1;
-  }
-
-  if (!failed)
-  {
-    // Sum the results to hstates[0].
-    SimState *hss0 = &(hstates[0]->host_sim_state);
-    for (unsigned int i = 1; i < num_GPUs; ++i)
-    {
-      SimState *hssi = &(hstates[i]->host_sim_state);
-
-      // A_rz
-      int size = simulation->det.nr * simulation->det.nz;
-      for (int j = 0; j < size; ++j)
-      {
-        hss0->A_rz[j] += hssi->A_rz[j];
-      }
-
-      // Rd_ra
-      size = simulation->det.na * simulation->det.nr;
-      for (int j = 0; j < size; ++j)
-      {
-        hss0->Rd_ra[j] += hssi->Rd_ra[j];
-      }
-
-      // Tt_ra
-      size = simulation->det.na * simulation->det.nr;
-      for (int j = 0; j < size; ++j)
-      {
-        hss0->Tt_ra[j] += hssi->Tt_ra[j];
-      }
-    }
-
-    // End the timer.
-    time2=clock();
-    printf("\n*** Simulation time: %.3f sec\n\n",
-      (double)(time2-time1)/CLOCKS_PER_SEC);
-
-    Write_Simulation_Results(hss0, simulation, time2-time1);
-  }
+  Write_Simulation_Results(hss, simulation, time2-time1);
 
   // Free SimState structs.
-  for (unsigned int i = 0; i < num_GPUs; ++i)
-  {
-    FreeHostSimState(&(hstates[i]->host_sim_state));
-    free(hstates[i]);
-  }
+  FreeHostSimState(hss);
+  free(hstates);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -311,53 +197,34 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 //////////////////////////////////////////////////////////////////////////////
 int main(int argc, char* argv[])
 {
+	//Init GPU Device
+	CUT_DEVICE_INIT(argc, argv);
+
   char* filename = NULL;
   unsigned long long seed = (unsigned long long) time(NULL);
   int ignoreAdetection = 0;
-  unsigned int num_GPUs = 1;
-
+  
   SimulationStruct* simulations;
   int n_simulations;
 
   int i;
 
   // Parse command-line arguments.
-  if (interpret_arg(argc, argv, &filename,
-    &seed, &ignoreAdetection, &num_GPUs))
+  if (interpret_arg(argc, argv, &filename,&seed, &ignoreAdetection))
   {
     usage(argv[0]);
     return 1;
   }
 
-  // Determine the number of GPUs available.
-  int dev_count;
-  CUDA_SAFE_CALL( cudaGetDeviceCount(&dev_count) );
-  if (dev_count <= 0)
-  {
-    fprintf(stderr, "No GPU available. Quit.\n");
-    return 1;
-  }
-
-  // Make sure we do not use more than what we have.
-  if (num_GPUs > dev_count)
-  {
-    printf("The number of GPUs specified (%u) is more than "
-      "what is available (%d)!\n", num_GPUs, dev_count);
-    num_GPUs = (unsigned int)dev_count;
-  }
-
   // Output the execution configuration.
   printf("\n====================================\n");
   printf("EXECUTION MODE:\n");
-  printf("  ignore A-detection:      %s\n",
-    ignoreAdetection ? "YES" : "NO");
+  printf("  ignore A-detection:      %s\n", ignoreAdetection ? "YES" : "NO");
   printf("  seed:                    %llu\n", seed);
-  printf("  # of GPUs:               %u\n", num_GPUs);
   printf("====================================\n\n");
 
   // Read the simulation inputs.
-  n_simulations = read_simulation_data(filename, &simulations,
-    ignoreAdetection);
+  n_simulations = read_simulation_data(filename, &simulations, ignoreAdetection);
   if(n_simulations == 0)
   {
     printf("Something wrong with read_simulation_data!\n");
@@ -365,11 +232,10 @@ int main(int argc, char* argv[])
   }
   printf("Read %d simulations\n",n_simulations);
 
-  // Allocate and initialize RNG seeds (for all threads on all GPUs).
-  unsigned int len = NUM_THREADS * num_GPUs;
+  // Allocate and initialize RNG seeds.
+  unsigned int len = NUM_THREADS;
 
-  unsigned long long *x = (unsigned long long*)
-    malloc(len * sizeof(unsigned long long));
+  unsigned long long *x = (unsigned long long*)malloc(len * sizeof(unsigned long long));
   unsigned int *a = (unsigned int*)malloc(len * sizeof(unsigned int));
   if (init_RNG(x, a, len, "safeprimes_base32.txt", seed)) return 1;
   printf("Using the MWC random number generator ...\n");
@@ -378,12 +244,11 @@ int main(int argc, char* argv[])
   for(i=0;i<n_simulations;i++)
   {
     // Run a simulation
-    DoOneSimulation(i, &simulations[i], num_GPUs, x, a);
+    DoOneSimulation(i, &simulations[i], x, a);
   }
 
   // Free the random number seed arrays.
   free(x); free(a);
-
   FreeSimulationStruct(simulations, n_simulations);
 
   return 0; 

@@ -55,7 +55,7 @@ void usage(const char *prog_name)
 //////////////////////////////////////////////////////////////////////////////
 int interpret_arg(int argc, char* argv[], char **fpath_p,
                   unsigned long long* seed,
-                  int* ignoreAdetection, unsigned int *num_GPUs)
+                  int* ignoreAdetection)
 {
   int i;
   char *fpath = NULL;
@@ -83,10 +83,6 @@ int interpret_arg(int argc, char* argv[], char **fpath_p,
     else if (sscanf(arg, "S%llu", seed) == 1)
     {
       // <seed> has been set.
-    }
-    else if (sscanf(arg, "G%u", num_GPUs) == 1)
-    {
-      // <num_GPUs> has been set.
     }
   }
 
