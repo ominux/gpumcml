@@ -91,14 +91,42 @@ int interpret_arg(int argc, char* argv[], char **fpath_p,
   return (fpath == NULL);
 }
 
+/***********************************************************
+ *	Write the input parameters to the file.
+ ****/
+void WriteInParm(FILE *file, SimulationStruct * sim)
+{
+  int i;
+  
+  fprintf(file, 
+	"InParm \t\t\t# Input parameters. cm is used.\n");
+  
+  fprintf(file, "%s \tA\t\t# output file name, ASCII.\n", sim->outp_filename);
+  fprintf(file, "%u \t\t\t# No. of photons\n", sim->number_of_photons);
+  
+  fprintf(file, "%G\t%G\t\t# dz, dr [cm]\n", sim->det.dz, sim->det.dr);
+  fprintf(file, "%u\t%u\t%u\t# No. of dz, dr, da.\n\n", sim->det.nz, sim->det.nr, sim->det.na);
+  
+  fprintf(file, "%u\t\t\t\t\t# Number of layers\n", sim->n_layers);
+
+  fprintf(file, "#n\tmua\tmus\tg\td\t# One line for each layer\n"); 
+  fprintf(file, "%G\t\t\t\t\t# n for medium above\n", sim->layers[0].n); 
+
+  for(i=1; i<=sim->n_layers; i++)  {
+    fprintf(file, "%G\t%G\t%G\t%G\t%G\t# layer %hd\n",
+      sim->layers[i].n, sim->layers[i].mua, 1/sim->layers[i].mutr-sim->layers[i].mua, sim->layers[i].g, sim->layers[i].z_max-sim->layers[i].z_min, i);
+  }
+  fprintf(file, "%G\t\t\t\t\t# n for medium below\n", sim->layers[i].n); 
+}
+
 //////////////////////////////////////////////////////////////////////////////
 //   Scale raw data and format data for file output 
 //////////////////////////////////////////////////////////////////////////////
 int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t simulation_time)
 {
-  FILE* pFile_inp;
+  //FILE* pFile_inp;
   FILE* pFile_outp;
-  char mystring[STR_LEN];
+  //char mystring[STR_LEN];
 
   // Copy stuff from sim->det to make things more readable:
   double dr=(double)sim->det.dr;		// Detection grid resolution, r-direction [cm]
@@ -125,9 +153,9 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t s
   unsigned long long A=0;		// Absorbed fraction [-]
   unsigned long long T=0;		// Transmittance [-]
 
-  // Open the input and output files
-  pFile_inp = fopen (sim->inp_filename , "r");
-  if (pFile_inp == NULL){perror ("Error opening input file");return 0;}
+  // Open the output file
+  /*pFile_inp = fopen (sim->inp_filename , "r");
+  if (pFile_inp == NULL){perror ("Error opening input file");return 0;}*/
 
   pFile_outp = fopen (sim->outp_filename , "w");
   if (pFile_outp == NULL){perror ("Error opening output file");return 0;}
@@ -145,20 +173,20 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t s
   // Write simulation time
   fprintf(pFile_outp,"# User time: %.2f sec\n\n",(double)simulation_time/CLOCKS_PER_SEC);
 
+  WriteInParm (pFile_outp, sim); 
+  //fprintf(pFile_outp,"InParam\t\t# Input parameters:\n");
+  //// Copy the input data from inp_filename
+  ////printf("pos=%d\n",ftell(pFile_inp));
+  //fseek(pFile_inp, sim->begin, SEEK_SET);
+  //while(sim->end>ftell(pFile_inp))
+  //{
+  //  //printf("pos=%d\n",ftell(pFile_inp));
+  //  fgets(mystring , STR_LEN , pFile_inp);
+  //  fputs(mystring , pFile_outp );
+  //}
 
-  fprintf(pFile_outp,"InParam\t\t# Input parameters:\n");
-  // Copy the input data from inp_filename
   //printf("pos=%d\n",ftell(pFile_inp));
-  fseek(pFile_inp, sim->begin, SEEK_SET);
-  while(sim->end>ftell(pFile_inp))
-  {
-    //printf("pos=%d\n",ftell(pFile_inp));
-    fgets(mystring , STR_LEN , pFile_inp);
-    fputs(mystring , pFile_outp );
-  }
-
-  //printf("pos=%d\n",ftell(pFile_inp));
-  fclose(pFile_inp);
+  /*fclose(pFile_inp);*/
 
   for(i=0;i<rz_size;i++)A+= HostMem->A_rz[i];
   for(i=0;i<ra_size;i++){T += HostMem->Tt_ra[i];Rd += HostMem->Rd_ra[i];}
