@@ -158,10 +158,15 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   printf("        - number_of_photons = %u\n", simulation->number_of_photons);
   printf("------------------------------------------------------------\n\n");
 
-  clock_t time1,time2;
+  // Start simulation kernel exec timer
+  unsigned int execTimer = 0;
+  CUT_SAFE_CALL( cutCreateTimer( &execTimer));
+  CUT_SAFE_CALL( cutStartTimer(execTimer));
 
-  // Start the clock
-  time1=clock();
+  //clock_t time1,time2;
+
+  //// Start the clock
+  //time1=clock();
 
   // For each GPU, init the host-side structure.
   HostThreadState* hstates;
@@ -182,14 +187,17 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   RunGPUi (hstates);
 
   // End the timer.
-  time2=clock();
-  printf("\n*** Simulation time: %.3f sec\n\n",(double)(time2-time1)/CLOCKS_PER_SEC);
-
-  Write_Simulation_Results(hss, simulation, time2-time1);
+  //time2=clock();
+  //printf("\n*** Simulation time: %.3f sec\n\n",(double)(time2-time1)/CLOCKS_PER_SEC);
+  CUT_SAFE_CALL( cutStopTimer(execTimer));
+  printf( "\n\n>>>>>>Simulation time: %f (ms)\n", cutGetTimerValue(execTimer));
+  
+  Write_Simulation_Results(hss, simulation, cutGetTimerValue(execTimer));
 
   // Free SimState structs.
   FreeHostSimState(hss);
   free(hstates);
+  CUT_SAFE_CALL( cutDeleteTimer( execTimer));
 }
 
 //////////////////////////////////////////////////////////////////////////////
