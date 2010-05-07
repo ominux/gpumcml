@@ -1,4 +1,4 @@
-#summary Why GPUMCML and CPUMCML differs
+#summary How GPUMCML and CPUMCML differs
 
 = Introduction =
 
