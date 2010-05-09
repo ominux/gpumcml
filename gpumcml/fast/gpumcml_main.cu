@@ -118,6 +118,12 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   dim3 dimBlock(NUM_THREADS_PER_BLOCK);
   dim3 dimGrid(hstate->n_tblks);
 
+  int k_smem_sz = 0;
+#ifdef USE_32B_ELEM_FOR_ARZ_SMEM
+  // This piece of shared memory is for overflow handling.
+  k_smem_sz = NUM_THREADS_PER_BLOCK * sizeof(UINT32);
+#endif
+
   // Initialize the remaining thread states.
   InitThreadState<<<dimGrid,dimBlock>>>(tstates);
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
@@ -148,11 +154,11 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     // Run the kernel.
     if (hstate->sim->ignoreAdetection == 1)
     {
-      MCMLKernel<1><<<dimGrid, dimBlock>>>(DeviceMem, tstates);
+      MCMLKernel<1><<<dimGrid, dimBlock, k_smem_sz>>>(DeviceMem, tstates);
     }
     else
     {
-      MCMLKernel<0><<<dimGrid, dimBlock>>>(DeviceMem, tstates);
+      MCMLKernel<0><<<dimGrid, dimBlock, k_smem_sz>>>(DeviceMem, tstates);
     }
     // Wait for all threads to finish.
     CUDA_SAFE_CALL( cudaThreadSynchronize() );
@@ -378,7 +384,7 @@ int main(int argc, char* argv[])
     hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
 
     // Set the GPU ID.
-    hstates[i]->dev_id = i+1;
+    hstates[i]->dev_id = i;
 
     // Get the GPU properties.
     CUDA_SAFE_CALL( cudaGetDeviceProperties(&props, hstates[i]->dev_id) );
@@ -386,12 +392,11 @@ int main(int argc, char* argv[])
         i, props.name, props.major, props.minor, props.multiProcessorCount);
 
     // Validate the GPU compute capability.
-    int cc = (props.major * 10 + props.minor) * 10;
+    int cc = props.major * 10 + props.minor;
     if (cc < CUDA_ARCH)
     {
-      fprintf(stderr, "[GPU %u] "
-          "Does not meet the Compute Capability this program requires! Abort",
-          i);
+      fprintf(stderr, "\nGPU %u does not meet the Compute Capability "
+          "this program requires (%d)! Abort.\n\n", i, CUDA_ARCH);
       exit(1);
     }
 
