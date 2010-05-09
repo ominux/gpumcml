@@ -53,46 +53,21 @@ rel_trans_ra = 100*abs(ref.trans_ra-cmp1.trans_ra)./ref.trans_ra;
 rel_layer = 100*abs(ref.layer-cmp1.layer)./ref.layer;
 rel_f_rz = 100*abs(ref.f_rz-cmp1.f_rz)./ref.f_rz;
 
-if nlayers == 1
-    disp( ['Relative difference in absorption by layer: ' num2str(100*abs(ref.rel_abs_layer-cmp1.rel_abs_layer)/ref.rel_abs_layer) ' %' ]);
-else
-    figure
-    plot(rel_abs_layer);
-    title('Relative difference in absoption by layer')
-    xlabel('Layer [-]')
-    ylabel('Relative difference [%]')
-end
-
-figure
-plot(z, rel_abs_z);
-title('Relative difference in absoption(z)')
-xlabel('z [cm]')
-ylabel('Relative difference [%]')
-
-figure
-plot(r, rel_refl_r);
-title('Relative difference in reflectance(r)')
-xlabel('r [cm]')
-ylabel('Relative difference [%]')
-
-figure
-plot(r, rel_trans_r);
-title('Relative difference in transmittance(r)')
-xlabel('r [cm]')
-ylabel('Relative difference [%]')
-
-
-figure
-plot(r, rel_refl_r);
-title('Relative difference in reflectance(r)')
-xlabel('r [cm]')
-ylabel('Relative difference [%]')
-
-figure
-plot(r, rel_trans_r);
-title('Relative difference in transmittance(r)')
-xlabel('r [cm]')
-ylabel('Relative difference [%]')
+% if nlayers == 1
+%     disp( ['Relative difference in absorption by layer: ' num2str(100*abs(ref.rel_abs_layer-cmp1.rel_abs_layer)/ref.rel_abs_layer) ' %' ]);
+% else
+%     figure
+%     plot(rel_abs_layer);
+%     title('Relative difference in absoption by layer')
+%     xlabel('Layer [-]')
+%     ylabel('Relative difference [%]')
+% end
+% 
+% figure
+% plot(z, rel_abs_z);
+% title('Relative difference in absoption(z)')
+% xlabel('z [cm]')
+% ylabel('Relative difference [%]')
 
 figure
 rel_abs_rz(rel_abs_rz>10)=10;
@@ -102,66 +77,79 @@ title('Relative difference in abs(r,z) [%]')
 xlabel('r [cm]')
 ylabel('z [cm]')
 colormap hot; 
-
-
+ylim([0 0.8]); 
 
 figure
-rel_f_rz(rel_f_rz>10)=10;
-imagesc(r,z,rel_f_rz)
-colorbar
-title('Relative difference in fluence(r,z) [%]')
+stem(r, rel_refl_r, 'MarkerSize',3);
+title('Relative difference in reflectance(r)')
 xlabel('r [cm]')
-ylabel('z [cm]')
-colormap hot; 
+ylabel('Relative difference [%]')
+ylim([0 50]); 
+
+figure
+stem(r, rel_trans_r, 'MarkerSize',3);
+title('Relative difference in transmittance(r)')
+xlabel('r [cm]')
+ylabel('Relative difference [%]')
+ylim([0 50]); 
+
+% figure
+% rel_f_rz(rel_f_rz>10)=10;
+% imagesc(r,z,rel_f_rz)
+% colorbar
+% title('Relative difference in fluence(r,z) [%]')
+% xlabel('r [cm]')
+% ylabel('z [cm]')
+% colormap hot; 
 
 
-
-if na == 1
-    disp( ['Relative difference in refl_a: ' num2str(100*abs(ref.refl_a-cmp1.refl_a)/ref.refl_a) ' %' ]);
-    disp( ['Relative difference in trans_a: ' num2str(100*abs(ref.trans_a-cmp1.trans_a)/ref.trans_a) ' %' ]);
-    
-    figure
-    plot(r, rel_refl_ra);
-    title('Relative difference in reflectance(r,a)')
-    xlabel('r [cm]')
-    ylabel('Relative difference [%]')
-
-    figure
-    plot(r, rel_trans_ra);
-    title('Relative difference in transmittance(r,a)')
-    xlabel('r [cm]')
-    ylabel('Relative difference [%]')
-    
-else
-    figure
-    plot(r, rel_refl_a);
-    title('Relative difference in reflectance(a)')
-    xlabel('a []')
-    ylabel('Relative difference [%]')
-
-    figure
-    plot(r, rel_trans_a);
-    title('Relative difference in transmittance(a)')
-    xlabel('a []')
-    ylabel('Relative difference [%]')
-
-    figure
-    rel_refl_ra(rel_refl_ra>10)=10;
-    imagesc(r,a,rel_refl_ra)
-    colorbar
-    title('Relative difference in reflectance(r,a) [%]')
-    xlabel('r [cm]')
-    ylabel('a []')
-
-    figure
-    rel_trans_ra(rel_trans_ra>10)=10;
-    imagesc(r,a,rel_trans_ra)
-    colorbar
-    title('Relative difference in transmittance(r,a) [%]')
-    xlabel('r [cm]')
-    ylabel('a []')
-    
-end
+% 
+% if na == 1
+%     disp( ['Relative difference in refl_a: ' num2str(100*abs(ref.refl_a-cmp1.refl_a)/ref.refl_a) ' %' ]);
+%     disp( ['Relative difference in trans_a: ' num2str(100*abs(ref.trans_a-cmp1.trans_a)/ref.trans_a) ' %' ]);
+%     
+%     figure
+%     plot(r, rel_refl_ra);
+%     title('Relative difference in reflectance(r,a)')
+%     xlabel('r [cm]')
+%     ylabel('Relative difference [%]')
+% 
+%     figure
+%     plot(r, rel_trans_ra);
+%     title('Relative difference in transmittance(r,a)')
+%     xlabel('r [cm]')
+%     ylabel('Relative difference [%]')
+%     
+% else
+%     figure
+%     plot(r, rel_refl_a);
+%     title('Relative difference in reflectance(a)')
+%     xlabel('a []')
+%     ylabel('Relative difference [%]')
+% 
+%     figure
+%     plot(r, rel_trans_a);
+%     title('Relative difference in transmittance(a)')
+%     xlabel('a []')
+%     ylabel('Relative difference [%]')
+% 
+%     figure
+%     rel_refl_ra(rel_refl_ra>10)=10;
+%     imagesc(r,a,rel_refl_ra)
+%     colorbar
+%     title('Relative difference in reflectance(r,a) [%]')
+%     xlabel('r [cm]')
+%     ylabel('a []')
+% 
+%     figure
+%     rel_trans_ra(rel_trans_ra>10)=10;
+%     imagesc(r,a,rel_trans_ra)
+%     colorbar
+%     title('Relative difference in transmittance(r,a) [%]')
+%     xlabel('r [cm]')
+%     ylabel('a []')
+%     
+% end
 
 
 
