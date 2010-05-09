@@ -32,6 +32,38 @@
 #include "gpumcml_rng.cu"
 
 //////////////////////////////////////////////////////////////////////////////
+// This host routine computes the maximum element value of A_rz in shared
+// memory, that indicates an imminent overflow.
+//
+// This MAX_OVERFLOW is MAX_UINT32 - MAX(dwa) * NUM_THREADS_PER_BLOCK.
+//
+// All we really need to compute is
+//    MAX(dwa) <= WEIGHT_SCALE * <init_photon_w> * MAX( mua/(mua+mus) )
+//
+// We have to be accurate in this bound because if we assume that
+//    MAX(dwa) = WEIGHT_SCALE,
+// MAX_OVERFLOW can be small if WEIGHT_SCALE is large, like 12000000.
+//
+// <n_layers> is the length of <layers>, excluding the top and bottom layers.
+//////////////////////////////////////////////////////////////////////////////
+UINT32 compute_Arz_overflow_count(FLOAT init_photon_w,
+        LayerStruct *layers, UINT32 n_layers, UINT32 n_threads_per_tblk)
+{
+    // Determine the largest mua/(mua+mus) over all layers.
+    double max_muas = 0;
+    for (int i = 1; i <= n_layers; ++i)
+    {
+        double muas = layers[i].mua * layers[i].mutr;
+        if (max_muas < muas) max_muas = muas;
+    }
+
+    // Determine an upper bound of <dwa> in <MCMLKernel>.
+    UINT32 max_dwa = (UINT32)(init_photon_w * max_muas * WEIGHT_SCALE) + 1;
+
+    return (0xFFFFFFFF - max_dwa * n_threads_per_tblk);
+}
+
+//////////////////////////////////////////////////////////////////////////////
 //   Initialize photon position (x, y, z), direction (ux, uy, uz), weight (w), 
 //   step size remainder (sleft), and current layer (layer) 
 //   Note: Infinitely narrow beam (pointing in the +z direction = downwards)
@@ -309,7 +341,7 @@ __global__ void InitThreadState(GPUThreadStates tstates)
     &photon_w, &photon_sleft, &photon_layer);
 
   // This is the unique ID for each thread (or thread ID = tid)
-  UINT32 tid = blockIdx.x * NUM_THREADS_PER_BLOCK + threadIdx.x;
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   tstates.photon_x[tid] = photon_x;
   tstates.photon_y[tid] = photon_y;
@@ -335,7 +367,7 @@ __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
                                 UINT64 rnd_x, UINT32 rnd_a,
                                 UINT32 is_active)
 {
-  UINT32 tid = blockIdx.x * NUM_THREADS_PER_BLOCK + threadIdx.x;
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   d_state->x[tid] = rnd_x;
   d_state->a[tid] = rnd_a;
@@ -364,7 +396,7 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
                                    UINT64 *rnd_x, UINT32 *rnd_a,
                                    UINT32 *is_active)
 {
-  UINT32 tid = blockIdx.x * NUM_THREADS_PER_BLOCK + threadIdx.x;
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   *rnd_x = d_state->x[tid];
   *rnd_a = d_state->a[tid];
@@ -383,17 +415,16 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
 }
 
 //////////////////////////////////////////////////////////////////////////////
-// Flush the element at offset <shared_addr> of A_rz in shared memory (s_A_rz)
+// Flush the element at offset <s_addr> of A_rz in shared memory (s_A_rz)
 // to the global memory (g_A_rz). <s_A_rz> is of dimension MAX_IR x MAX_IZ.
 //////////////////////////////////////////////////////////////////////////////
-__device__ void Flush_Arz(UINT64 *g_A_rz,
-                          UINT64 *s_A_rz, UINT32 shared_addr)
+__device__ void Flush_Arz(UINT64 *g_A_rz, ARZ_SMEM_TY *s_A_rz, UINT32 s_addr)
 {
-  UINT32 ir = shared_addr / MAX_IZ;
-  UINT32 iz = shared_addr - ir * MAX_IZ;
-  UINT32 global_addr = ir * d_simparam.nz + iz;
+  UINT32 ir = s_addr / MAX_IZ;
+  UINT32 iz = s_addr - ir * MAX_IZ;
+  UINT32 g_addr = ir * d_simparam.nz + iz;
 
-  atomicAdd(&g_A_rz[global_addr], s_A_rz[shared_addr]);
+  atomicAdd(&g_A_rz[g_addr], (UINT64)s_A_rz[s_addr]);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -403,7 +434,7 @@ __device__ void Flush_Arz(UINT64 *g_A_rz,
 //////////////////////////////////////////////////////////////////////////////
 __device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
 {
-#ifdef FERMI
+#ifdef USE_64B_ATOMIC_SMEM
   atomicAdd(address, (UINT64)add);
 #else
   if (atomicAdd((UINT32*)address,add) +add < add)
@@ -415,6 +446,8 @@ __device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+
+extern __shared__ UINT32 MCMLKernel_smem[];
 
 //////////////////////////////////////////////////////////////////////////////
 //   Main Kernel for MCML (Calls the above inline device functions)
@@ -454,22 +487,48 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
 #ifndef USE_TRUE_CACHE
   // Cache the frequently acessed region of A_rz in the shared memory.
-  __shared__ UINT64 A_rz_shared[MAX_IR*MAX_IZ];
+  __shared__ ARZ_SMEM_TY A_rz_shared[MAX_IR*MAX_IZ];
 
   if (ignoreAdetection == 0)
   {
     // Clear the cache.
-    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ;
-      i += NUM_THREADS_PER_BLOCK) A_rz_shared[i] = 0;
-      __syncthreads();
+    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ; i += blockDim.x)
+    {
+      A_rz_shared[i] = 0;
+    }
+    __syncthreads();
   }
+
+#ifdef USE_32B_ELEM_FOR_ARZ_SMEM
+  // Overflow handling:
+  //
+  // It is too spacious to keep track of whether or not each element in
+  // the shared memory is about to overflow. Therefore, we divide all the
+  // elements into NUM_THREADS_PER_BLOCK groups (cyclic distribution). For
+  // each group, we use a single flag to keep track of if ANY element in it
+  // is about to overflow. This results in the following array.
+  //
+  // At the end of each simulation step, if the flag for any of the groups
+  // is set, the corresponding thread (with id equal to the group index)
+  // flushes ALL elements in the group to the global memory.
+  //
+  // This array is dynamically allocated.
+  //
+  UINT32 *A_rz_overflow = (UINT32*)MCMLKernel_smem;
+  if (ignoreAdetection == 0)
+  {
+    // Clear the flags.
+    A_rz_overflow[threadIdx.x] = 0;
+  }
+#endif
+
 #endif
 
   //////////////////////////////////////////////////////////////////////////
 
   // Get the copy of A_rz (in the global memory) this thread writes to.
-  UINT64 *g_A_rz = d_state.A_rz; 
-  //    + (blockIdx.x % N_A_RZ_COPIES) * (d_simparam.nz * d_simparam.nr);
+  UINT64 *g_A_rz = d_state.A_rz
+    + (blockIdx.x % N_A_RZ_COPIES) * (d_simparam.nz * d_simparam.nr);
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -504,7 +563,6 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
         FLOAT dwa = photon_w * d_layerspecs[photon_layer].mua_muas;
         photon_w -= dwa;
 
-        // DAVID
         if (ignoreAdetection == 0)
         {
           // automatic __float2uint_rz
@@ -528,13 +586,27 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
               {
                 // Write it to the shared memory.
                 last_addr = last_ir * MAX_IZ + last_iz;
+#ifdef USE_32B_ELEM_FOR_ARZ_SMEM
+                // Use 32-bit atomicAdd.
+                UINT32 oldval = atomicAdd(&A_rz_shared[last_addr], last_w);
+                // Detect overflow.
+                if (oldval >= d_simparam.A_rz_overflow)
+                {
+                  A_rz_overflow[last_addr % blockDim.x] = 1;
+                }
+#else
+                // 64-bit atomic instruction
                 AtomicAddULL_Shared(&A_rz_shared[last_addr], last_w);
+#endif
               }
               else
 #endif
               {
+                // if (ir > 1024)
+                {
                 // Write it to the global memory directly.
                 atomicAdd(&g_A_rz[last_addr], (UINT64)last_w);
+                }
               }
 
               last_ir = ir; last_iz = iz;
@@ -571,7 +643,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
           photon_w *= (FP_ONE / CHANCE);
         }
         // This photon is terminated.
-        else if (atomicSub(d_state.n_photons_left, 1) > NUM_THREADS)
+        else if (atomicSub(d_state.n_photons_left, 1) > gridDim.x*blockDim.x)
         {
           // Launch a new photon.
           LaunchPhoton(&photon_x, &photon_y, &photon_z,
@@ -586,32 +658,66 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       }
     }
 
+    //////////////////////////////////////////////////////////////////////////
+
+#if !defined(USE_TRUE_CACHE) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
+    if (ignoreAdetection == 0)
+    {
+      // Enter a phase of handling overflow in A_rz_shared.
+      __syncthreads();
+
+      if (A_rz_overflow[threadIdx.x])
+      {
+        // Flush all elements I am responsible for to the global memory.
+        for (int i = threadIdx.x; i < MAX_IR*MAX_IZ; i += blockDim.x)
+        {
+          Flush_Arz(g_A_rz, A_rz_shared, i);
+          A_rz_shared[i] = 0;
+        }
+        // Reset the flag.
+        A_rz_overflow[threadIdx.x] = 0;
+      }
+
+      __syncthreads();
+    }
+#endif
+
     //////////////////////////////////////////////////////////////////////
   } // end of the main loop
 
   __syncthreads();
 
-  //////////////////////////////////////////////////////////////////////////
-
   if (ignoreAdetection == 0)
   {
-    // Commit the last weight drop to the global memory directly.
+    // Commit the last weight drop.
     // NOTE: last_w == 0 if inactive.
     if (last_w > 0)
     {
-      UINT32 global_addr = last_ir * d_simparam.nz + last_iz;
-      atomicAdd(&g_A_rz[global_addr], last_w);
+#if 1
+      // Commit to the global memory directly.
+      atomicAdd(&g_A_rz[last_addr], last_w);
+#else
+      // Commit to A_rz_shared.
+      UINT32 s_addr = last_ir * MAX_IZ + last_iz;
+      atomicAdd(&g_A_rz[s_addr], last_w);
+#endif
     }
+  }
 
+  //////////////////////////////////////////////////////////////////////////
+
+#if 1
 #ifndef USE_TRUE_CACHE
+  if (ignoreAdetection == 0)
+  {
     // Flush A_rz_shared to the global memory.
-    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ;
-      i += NUM_THREADS_PER_BLOCK)
+    for (int i = threadIdx.x; i < MAX_IR*MAX_IZ; i += blockDim.x)
     {
       Flush_Arz(g_A_rz, A_rz_shared, i);
     }
-#endif
   }
+#endif
+#endif
 
   //////////////////////////////////////////////////////////////////////////
 
@@ -626,27 +732,27 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
-//__global__ void sum_A_rz(UINT64 *g_A_rz)
-//{
-//    UINT64 sum;
-//
-//    int n_elems = d_simparam.nz * d_simparam.nr;
-//    int base_ofst, ofst;
-//
-//    for (base_ofst = blockIdx.x * blockDim.x + threadIdx.x;
-//            base_ofst < n_elems; base_ofst += blockDim.x * gridDim.x)
-//    {
-//        sum = 0;
-//        ofst = base_ofst;
-//#pragma unroll
-//        for (int i = 0; i < N_A_RZ_COPIES; ++i)
-//        {
-//            sum += g_A_rz[ofst];
-//            ofst += n_elems;
-//        }
-//        g_A_rz[base_ofst] = sum;
-//    }
-//}
+__global__ void sum_A_rz(UINT64 *g_A_rz)
+{
+  UINT64 sum;
+
+  int n_elems = d_simparam.nz * d_simparam.nr;
+  int base_ofst, ofst;
+
+  for (base_ofst = blockIdx.x * blockDim.x + threadIdx.x;
+      base_ofst < n_elems; base_ofst += blockDim.x * gridDim.x)
+  {
+    sum = 0;
+    ofst = base_ofst;
+#pragma unroll
+    for (int i = 0; i < N_A_RZ_COPIES; ++i)
+    {
+      sum += g_A_rz[ofst];
+      ofst += n_elems;
+    }
+    g_A_rz[base_ofst] = sum;
+  }
+}
 
 #endif  // _GPUMCML_KERNEL_CU_
 

@@ -30,7 +30,7 @@
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize Device Constant Memory with read-only data
 //////////////////////////////////////////////////////////////////////////////
-int InitDCMem(SimulationStruct *sim)
+int InitDCMem(SimulationStruct *sim, UINT32 A_rz_overflow)
 {
   // Make sure that the number of layers is within the limit.
   UINT32 n_layers = sim->n_layers + 2;
@@ -45,6 +45,7 @@ int InitDCMem(SimulationStruct *sim)
   h_simparam.na = sim->det.na;
   h_simparam.nz = sim->det.nz;
   h_simparam.nr = sim->det.nr;
+  h_simparam.A_rz_overflow = A_rz_overflow;
 
   CUDA_SAFE_CALL( cudaMemcpyToSymbol(d_simparam,
     &h_simparam, sizeof(SimParamGPU)) );
@@ -92,9 +93,9 @@ int InitDCMem(SimulationStruct *sim)
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize Device Memory (global) for read/write data
 //////////////////////////////////////////////////////////////////////////////
-// DAVID
 int InitSimStates(SimState* HostMem, SimState* DeviceMem,
-                  GPUThreadStates *tstates, SimulationStruct* sim)
+                  GPUThreadStates *tstates, SimulationStruct* sim,
+                  int n_threads)
 {
   int rz_size = sim->det.nr * sim->det.nz;
   int ra_size = sim->det.nr * sim->det.na;
@@ -108,12 +109,11 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
     HostMem->n_photons_left, size, cudaMemcpyHostToDevice) );
 
   // random number generation (on device only)
-  size = NUM_THREADS * sizeof(UINT32);
-
+  size = n_threads * sizeof(UINT32);
   CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->a, size) );
   CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->a, HostMem->a, size,
     cudaMemcpyHostToDevice) );
-  size = NUM_THREADS * sizeof(UINT64);
+  size = n_threads * sizeof(UINT64);
   CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->x, size) );
   CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->x, HostMem->x, size,
     cudaMemcpyHostToDevice) );
@@ -128,7 +128,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
     exit(1);
   }
   // On the device, we allocate multiple copies for less access contention.
-  //size *= N_A_RZ_COPIES;
+  size *= N_A_RZ_COPIES;
   CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->A_rz, size) );
   CUDA_SAFE_CALL( cudaMemset(DeviceMem->A_rz, 0, size) );
 
@@ -154,7 +154,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
   */
 
   // photon structure
-  size = NUM_THREADS * sizeof(FLOAT);
+  size = n_threads * sizeof(FLOAT);
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_x, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_y, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_z, size) );
@@ -163,7 +163,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uz, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_w, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_sleft, size) );
-  size = NUM_THREADS * sizeof(UINT32);
+  size = n_threads * sizeof(UINT32);
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_layer, size) );
 
   // thread active
@@ -175,7 +175,8 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
 //////////////////////////////////////////////////////////////////////////////
 //   Transfer data from Device to Host memory after simulation
 //////////////////////////////////////////////////////////////////////////////
-int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem, SimulationStruct* sim)
+int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem,
+    SimulationStruct* sim, int n_threads)
 {
   int rz_size = sim->det.nr*sim->det.nz;
   int ra_size = sim->det.nr*sim->det.na;
@@ -186,7 +187,9 @@ int CopyDeviceToHostMem(SimState* HostMem, SimState* DeviceMem, SimulationStruct
   CUDA_SAFE_CALL( cudaMemcpy(HostMem->Tt_ra,DeviceMem->Tt_ra,ra_size*sizeof(UINT64),cudaMemcpyDeviceToHost) );
 
   //Also copy the state of the RNG's
-  CUDA_SAFE_CALL( cudaMemcpy(HostMem->x,DeviceMem->x,NUM_THREADS*sizeof(UINT64),cudaMemcpyDeviceToHost) );
+  CUDA_SAFE_CALL(
+      cudaMemcpy(HostMem->x, DeviceMem->x, n_threads*sizeof(UINT64),
+        cudaMemcpyDeviceToHost) );
 
   return 0;
 }
@@ -245,3 +248,4 @@ void FreeDeviceSimStates(SimState *dstate, GPUThreadStates *tstates)
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+

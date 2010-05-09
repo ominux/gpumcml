@@ -84,13 +84,14 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   SimState *HostMem = &(hstate->host_sim_state);
   SimState DeviceMem;
   GPUThreadStates tstates;
-
+  // total number of threads in the grid
+  UINT32 n_threads = hstate->n_tblks * NUM_THREADS_PER_BLOCK;
   cudaError_t cudastat;
 
   CUDA_SAFE_CALL( cudaSetDevice(hstate->dev_id) );
 
   // Init the remaining states.
-  InitSimStates(HostMem, &DeviceMem, &tstates, hstate->sim);
+  InitSimStates(HostMem, &DeviceMem, &tstates, hstate->sim, n_threads);
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
   cudastat=cudaGetLastError(); // Check if there was an error
   if (cudastat)
@@ -102,7 +103,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     exit(1); 
   }
 
-  InitDCMem(hstate->sim);
+  InitDCMem(hstate->sim, hstate->A_rz_overflow);
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
   cudastat=cudaGetLastError(); // Check if there was an error
   if (cudastat)
@@ -115,7 +116,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   }
 
   dim3 dimBlock(NUM_THREADS_PER_BLOCK);
-  dim3 dimGrid(NUM_BLOCKS);
+  dim3 dimGrid(hstate->n_tblks);
 
   // Initialize the remaining thread states.
   InitThreadState<<<dimGrid,dimBlock>>>(tstates);
@@ -130,9 +131,8 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     exit(1); 
   }
 
-  // DAVID
-  // Configure the L1 cache for Fermi.
 #ifdef USE_TRUE_CACHE
+  // Configure the L1 cache for Fermi.
   if (hstate->sim->ignoreAdetection == 1)
   {
     cudaFuncSetCacheConfig(MCMLKernel<1>, cudaFuncCachePreferL1);
@@ -176,25 +176,24 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
       hstate->dev_id, i, *(HostMem->n_photons_left));
   }
 
-  //// DAVID
-  //// Sum the multiple copies of A_rz in the global memory.
-  //sum_A_rz<<<30, 128>>>(DeviceMem.A_rz);
-  //// Wait for all threads to finish.
-  //CUDA_SAFE_CALL( cudaThreadSynchronize() );
-  //// Check if there was an error
-  //cudastat = cudaGetLastError();
-  //if (cudastat)
-  //{
-  //    fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
-  //            hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
-  //    FreeHostSimState(HostMem);
-  //    FreeDeviceSimStates(&DeviceMem, &tstates);
-  //    exit(1); 
-  //}
+  // Sum the multiple copies of A_rz in the global memory.
+  sum_A_rz<<<30, 128>>>(DeviceMem.A_rz);
+  // Wait for all threads to finish.
+  CUDA_SAFE_CALL( cudaThreadSynchronize() );
+  // Check if there was an error
+  cudastat = cudaGetLastError();
+  if (cudastat)
+  {
+    fprintf(stderr, "[GPU %u] failure in sum_A_rz (%i): %s.\n",
+        hstate->dev_id, cudastat, cudaGetErrorString(cudastat));
+    FreeHostSimState(HostMem);
+    FreeDeviceSimStates(&DeviceMem, &tstates);
+    exit(1); 
+  }
 
   printf("[GPU %u] simulation done!\n", hstate->dev_id);
 
-  CopyDeviceToHostMem(HostMem, &DeviceMem, hstate->sim);
+  CopyDeviceToHostMem(HostMem, &DeviceMem, hstate->sim, n_threads);
   FreeDeviceSimStates(&DeviceMem, &tstates);
   // We still need the host-side structure.
 }
@@ -203,12 +202,25 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 //   Perform MCML simulation for one run out of N runs (in the input file)
 //////////////////////////////////////////////////////////////////////////////
 static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
-                            unsigned int num_GPUs,
-                            unsigned long long *x, unsigned int *a)
+                            HostThreadState* hstates[], UINT32 num_GPUs,
+                            UINT64 *x, UINT32 *a)
 {
   printf("\n------------------------------------------------------------\n");
   printf("        Simulation #%d\n", sim_id);
   printf("        - number_of_photons = %u\n", simulation->number_of_photons);
+
+  // Compute GPU-specific constant parameters.
+  UINT32 A_rz_overflow = 0;
+  // We only need it if we care about A_rz.
+#if !defined(USE_TRUE_CACHE) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
+  if (! simulation->ignoreAdetection)
+  {
+    A_rz_overflow = compute_Arz_overflow_count(simulation->start_weight,
+        simulation->layers, simulation->n_layers, NUM_THREADS_PER_BLOCK);
+    printf("        - A_rz_overflow = %u\n", A_rz_overflow);
+  }
+#endif
+
   printf("------------------------------------------------------------\n\n");
 
   clock_t time1,time2;
@@ -219,27 +231,20 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
 
   // For each GPU, init the host-side structure.
-  HostThreadState* hstates[MAX_GPU_COUNT];
-  for (unsigned int i = 0; i < num_GPUs; ++i)
+  for (UINT32 i = 0; i < num_GPUs; ++i)
   {
-    hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
-
-    hstates[i]->dev_id = i;
     hstates[i]->sim = simulation;
+    hstates[i]->A_rz_overflow = A_rz_overflow;
 
     SimState *hss = &(hstates[i]->host_sim_state);
 
     // number of photons responsible 
-    hss->n_photons_left = (unsigned int*)malloc(sizeof(unsigned int));
+    hss->n_photons_left = (UINT32*)malloc(sizeof(UINT32));
     // The last GPU may be responsible for more photons if the
     // distribution is uneven.
     *(hss->n_photons_left) = (i == num_GPUs-1) ?
       simulation->number_of_photons - (num_GPUs-1) * n_photons_per_GPU :
     n_photons_per_GPU;
-
-    // random number seeds
-    unsigned int ofst = i * NUM_THREADS;
-    hss->x = &x[ofst]; hss->a = &a[ofst];
   }
 
   // Launch a dedicated host thread for each GPU.
@@ -302,7 +307,6 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   for (unsigned int i = 0; i < num_GPUs; ++i)
   {
     FreeHostSimState(&(hstates[i]->host_sim_state));
-    free(hstates[i]);
   }
 }
 
@@ -363,23 +367,66 @@ int main(int argc, char* argv[])
     printf("Something wrong with read_simulation_data!\n");
     return 1;
   }
-  printf("Read %d simulations\n",n_simulations);
+  printf("Read %d simulations\n\n",n_simulations);
+
+  // Allocate one host thread state for each GPU.
+  HostThreadState* hstates[MAX_GPU_COUNT];
+  cudaDeviceProp props;
+  int n_threads = 0;    // total number of threads for all GPUs
+  for (i = 0; i < num_GPUs; ++i)
+  {
+    hstates[i] = (HostThreadState*)malloc(sizeof(HostThreadState));
+
+    // Set the GPU ID.
+    hstates[i]->dev_id = i+1;
+
+    // Get the GPU properties.
+    CUDA_SAFE_CALL( cudaGetDeviceProperties(&props, hstates[i]->dev_id) );
+    printf("[GPU %u] \"%s\" with Compute Capability %d.%d (%d SMs)\n",
+        i, props.name, props.major, props.minor, props.multiProcessorCount);
+
+    // Validate the GPU compute capability.
+    int cc = (props.major * 10 + props.minor) * 10;
+    if (cc < CUDA_ARCH)
+    {
+      fprintf(stderr, "[GPU %u] "
+          "Does not meet the Compute Capability this program requires! Abort",
+          i);
+      exit(1);
+    }
+
+    // We launch one thread block for each SM on this GPU.
+    hstates[i]->n_tblks = props.multiProcessorCount;
+
+    n_threads += hstates[i]->n_tblks * NUM_THREADS_PER_BLOCK;
+  }
 
   // Allocate and initialize RNG seeds (for all threads on all GPUs).
-  unsigned int len = NUM_THREADS * num_GPUs;
+  UINT64 *x = (UINT64*)malloc(n_threads * sizeof(UINT64));
+  UINT32 *a = (UINT32*)malloc(n_threads * sizeof(UINT32));
+  if (init_RNG(x, a, n_threads, "safeprimes_base32.txt", seed)) return 1;
+  printf("\nUsing the MWC random number generator ...\n");
 
-  unsigned long long *x = (unsigned long long*)
-    malloc(len * sizeof(unsigned long long));
-  unsigned int *a = (unsigned int*)malloc(len * sizeof(unsigned int));
-  if (init_RNG(x, a, len, "safeprimes_base32.txt", seed)) return 1;
-  printf("Using the MWC random number generator ...\n");
+  // Assign these seeds to each host thread state.
+  int ofst = 0;
+  for (i = 0; i < num_GPUs; ++i)
+  {
+    SimState *hss = &(hstates[i]->host_sim_state);
+    hss->x = &x[ofst];
+    hss->a = &a[ofst];
+
+    ofst += hstates[i]->n_tblks * NUM_THREADS_PER_BLOCK;
+  }
 
   //perform all the simulations
   for(i=0;i<n_simulations;i++)
   {
     // Run a simulation
-    DoOneSimulation(i, &simulations[i], num_GPUs, x, a);
+    DoOneSimulation(i, &simulations[i], hstates, num_GPUs, x, a);
   }
+
+  // Free host thread states.
+  for (i = 0; i < num_GPUs; ++i) free(hstates[i]);
 
   // Free the random number seed arrays.
   free(x); free(a);
@@ -391,3 +438,4 @@ int main(int argc, char* argv[])
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
+
