@@ -41,7 +41,7 @@ typedef float FLOAT;
 #define WEIGHT 1E-4F        
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE 12000000
+#define WEIGHT_SCALE 16777216
 
 #define PI_const 3.1415926F
 #define RPI 0.318309886F
@@ -161,6 +161,15 @@ typedef struct
 
   // simulation input parameters
   SimulationStruct *sim;
+
+  /* GPU-specific constant parameters */
+
+  // number of thread blocks launched
+  UINT32 n_tblks;
+
+  // the limit that indicates overflow of an element of A_rz
+  // in the shared memory
+  UINT32 A_rz_overflow;
 
 } HostThreadState;
 
