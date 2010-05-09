@@ -229,9 +229,14 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
   printf("------------------------------------------------------------\n\n");
 
-  clock_t time1,time2;
-  // Start the clock
-  time1=clock();
+  cudaEvent_t start, stop;
+  float elapsedTime;
+
+  cudaEventCreate(&start);
+  cudaEventCreate(&stop);
+
+  // Start the timer.
+  cudaEventRecord(start);
 
   // Distribute all photons among GPUs.
   unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
@@ -255,7 +260,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
   // Launch a dedicated host thread for each GPU.
   CUTThread hthreads[MAX_GPU_COUNT];
-  for (unsigned int i = 0; i < num_GPUs; ++i)
+  for (UINT32 i = 0; i < num_GPUs; ++i)
   {
     hthreads[i] = cutStartThread((CUT_THREADROUTINE)RunGPUi, hstates[i]);
   }
@@ -266,7 +271,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
   // Check any of the threads failed.
   int failed = 0;
-  for (unsigned int i = 0; i < num_GPUs && !failed; ++i)
+  for (UINT32 i = 0; i < num_GPUs && !failed; ++i)
   {
     if (hstates[i]->host_sim_state.n_photons_left == NULL) failed = 1;
   }
@@ -275,7 +280,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   {
     // Sum the results to hstates[0].
     SimState *hss0 = &(hstates[0]->host_sim_state);
-    for (unsigned int i = 1; i < num_GPUs; ++i)
+    for (UINT32 i = 1; i < num_GPUs; ++i)
     {
       SimState *hssi = &(hstates[i]->host_sim_state);
 
@@ -302,15 +307,20 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     }
 
     // End the timer.
-    time2=clock();
-    printf("\n*** Simulation time: %.3f sec\n\n",
-      (double)(time2-time1)/CLOCKS_PER_SEC);
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);
 
-    Write_Simulation_Results(hss0, simulation, time2-time1);
+    // Compute the execution time.
+    cudaEventElapsedTime(&elapsedTime, start, stop);
+    // Convert to seconds.
+    elapsedTime /= 1000.0;
+    printf("\n*** Simulation time: %.3f sec\n\n", elapsedTime);
+
+    Write_Simulation_Results(hss0, simulation, elapsedTime);
   }
 
   // Free SimState structs.
-  for (unsigned int i = 0; i < num_GPUs; ++i)
+  for (UINT32 i = 0; i < num_GPUs; ++i)
   {
     FreeHostSimState(&(hstates[i]->host_sim_state));
   }
@@ -322,9 +332,9 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 int main(int argc, char* argv[])
 {
   char* filename = NULL;
-  unsigned long long seed = (unsigned long long) time(NULL);
+  UINT64 seed = (UINT64) time(NULL);
   int ignoreAdetection = 0;
-  unsigned int num_GPUs = 1;
+  UINT32 num_GPUs = 1;
 
   SimulationStruct* simulations;
   int n_simulations;
@@ -353,7 +363,7 @@ int main(int argc, char* argv[])
   {
     printf("The number of GPUs specified (%u) is more than "
       "what is available (%d)!\n", num_GPUs, dev_count);
-    num_GPUs = (unsigned int)dev_count;
+    num_GPUs = (UINT32)dev_count;
   }
 
   // Output the execution configuration.

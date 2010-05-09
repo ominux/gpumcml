@@ -188,7 +188,7 @@ extern int read_simulation_data(char* filename,
         SimulationStruct** simulations, int ignoreAdetection);
 
 extern int Write_Simulation_Results(SimState* HostMem,
-        SimulationStruct* sim, clock_t simulation_time);
+        SimulationStruct* sim, float simulation_time);
 
 extern void FreeSimulationStruct(SimulationStruct* sim, int n_simulations);
 

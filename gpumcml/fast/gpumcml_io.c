@@ -126,7 +126,8 @@ void WriteInParm(FILE *file, SimulationStruct * sim)
 //////////////////////////////////////////////////////////////////////////////
 //   Scale raw data and format data for file output 
 //////////////////////////////////////////////////////////////////////////////
-int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t simulation_time)
+int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim,
+    float simulation_time)  // simulation time in seconds
 {
   //FILE* pFile_inp;
   FILE* pFile_outp;
@@ -175,7 +176,7 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim, clock_t s
   fprintf(pFile_outp,"####\n\n");
 
   // Write simulation time
-  fprintf(pFile_outp,"# User time: %.2f sec\n\n",(double)simulation_time/CLOCKS_PER_SEC);
+  fprintf(pFile_outp,"# User time: %.2f sec\n\n", simulation_time);
 
   WriteInParm (pFile_outp, sim); 
   //fprintf(pFile_outp,"InParam\t\t# Input parameters:\n");

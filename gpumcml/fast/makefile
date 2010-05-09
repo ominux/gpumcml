@@ -1,12 +1,16 @@
+#
+# Makefile for GPUMCML on Linux
+#
 
 ######################################################################
 # Configurations
 ######################################################################
 
-# To disable register usage constraint, set it to 0
+# To disable register usage constraint, set it to 0.
 MAX_REG_COUNT_SM20 := 36
 MAX_REG_COUNT_SM12 := 0
 
+# To compile 32-bit binaries on a 64-bit machine, set this to 1.
 COMPILE_32 := 1
 
 ######################################################################
@@ -56,7 +60,7 @@ PROG_BASE := gpumcml
 PROG_SM20 := $(PROG_BASE).sm_20
 PROG_SM12 := $(PROG_BASE).sm_12
 
-default: clean $(PROG_SM20) $(PROG_SM12)
+default: $(PROG_SM20) $(PROG_SM12)
 
 ######################################################################
 # GPU code compilation rules for Compute Capability 2.0
@@ -96,6 +100,9 @@ $(PROG_SM12).cu_o: $(PROG_BASE)_main.cu
 clean_sm_12:
 	$(NVCC) $(NVCC_FLAGS_SM12) -o $(PROG_SM20).cu_o -c $(PROG_BASE)_main.cu -clean
 
+# Disable implicit rules on .cu files.
+%.cu: ;
+
 ######################################################################
 # C code compilation rules
 ######################################################################
@@ -113,5 +120,5 @@ clean: clean_sm_20 clean_sm_12
 
 ######################################################################
 
-.PHONY: default clean
+.PHONY: default clean clean_sm_20 clean_sm_12
 
