@@ -236,7 +236,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   cudaEventCreate(&stop);
 
   // Start the timer.
-  cudaEventRecord(start);
+  cudaEventRecord(start,0);
 
   // Distribute all photons among GPUs.
   unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
@@ -307,7 +307,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     }
 
     // End the timer.
-    cudaEventRecord(stop);
+    cudaEventRecord(stop,0);
     cudaEventSynchronize(stop);
 
     // Compute the execution time.

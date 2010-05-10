@@ -91,6 +91,11 @@
 //                                1.0 1.1 1.2  1.3  2.0
 // UINT32 g_n_threads_per_blk[8] = { 0,  0,  256, 256, 896, 0, 0, 0 };
 
+//Manual Selection of Architecture in Visual Studio
+#ifdef _WIN32 
+#define CUDA_ARCH 12
+#endif
+
 // By default, we assume Compute Capability 2.0.
 #ifndef CUDA_ARCH
 #define CUDA_ARCH 20
@@ -125,8 +130,8 @@
 /////////////////////////////////////////////
 #elif CUDA_ARCH == 12
 
-#define NUM_THREADS_PER_BLOCK 320
-#define MAX_IR 26
+#define NUM_THREADS_PER_BLOCK 256
+#define MAX_IR 28
 #define MAX_IZ 128
 #define USE_32B_ELEM_FOR_ARZ_SMEM
 #define N_A_RZ_COPIES 1

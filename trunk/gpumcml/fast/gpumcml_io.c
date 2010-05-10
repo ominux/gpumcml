@@ -127,7 +127,8 @@ void WriteInParm(FILE *file, SimulationStruct * sim)
 //   Scale raw data and format data for file output 
 //////////////////////////////////////////////////////////////////////////////
 int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim,
-    float simulation_time)  // simulation time in seconds
+    float simulation_time)
+  // simulation time in seconds
 {
   //FILE* pFile_inp;
   FILE* pFile_outp;

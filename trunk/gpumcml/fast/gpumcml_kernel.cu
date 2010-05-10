@@ -298,7 +298,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     *uy = stsp;
     //SIGN = ((last_uz) >= MCML_FP_ZERO ? FP_ONE : -FP_ONE);
     //*uz = cost * SIGN;
-    *uz = copysignf(cost,last_uz); //This is equivalent to the above, but I used (*uz) = copysignf(cost,(*uz)*cost);
+    *uz = copysignf(cost,last_uz*cost); 
   }
   else 
     // Regular incident. 
@@ -316,7 +316,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
   (*ux) = (*ux)*temp;
   (*uy) = (*uy)*temp;
   (*uz) = (*uz)*temp;
-  
+ 
 }
 
 
@@ -412,13 +412,13 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
 // Flush the element at offset <s_addr> of A_rz in shared memory (s_A_rz)
 // to the global memory (g_A_rz). <s_A_rz> is of dimension MAX_IR x MAX_IZ.
 //////////////////////////////////////////////////////////////////////////////
-__device__ void Flush_Arz(UINT64 *g_A_rz, ARZ_SMEM_TY *s_A_rz, UINT32 s_addr)
+__device__ void Flush_Arz(UINT64 *g_A_rz, ARZ_SMEM_TY *s_A_rz, UINT32 saddr)
 {
-  UINT32 ir = s_addr / MAX_IZ;
-  UINT32 iz = s_addr - ir * MAX_IZ;
+  UINT32 ir = saddr / MAX_IZ;
+  UINT32 iz = saddr - ir * MAX_IZ;
   UINT32 g_addr = ir * d_simparam.nz + iz;
 
-  atomicAdd(&g_A_rz[g_addr], (UINT64)s_A_rz[s_addr]);
+  atomicAdd(&g_A_rz[g_addr], (UINT64)s_A_rz[saddr]);
 }
 
 //////////////////////////////////////////////////////////////////////////////
