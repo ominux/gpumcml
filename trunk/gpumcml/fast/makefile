@@ -42,7 +42,7 @@ CFLAGS := -Wall -O3
 LDFLAGS := $(LIBCUDART_DIR) -Lcutil-linux
 
 NVCC_FLAGS := -I$(CUDA_INSTALL_ROOT)/include -Icutil-linux
-NVCC_FLAGS += -O3 -DUNIX -use_fast_math -keep # -deviceemu
+NVCC_FLAGS += -O3 -DUNIX -use_fast_math #-keep # -deviceemu
 NVCC_FLAGS += -Xptxas -v
 #export PTX_FLAGS := $(PTXAS_FLAGS) -maxrregcount 64 -mem -v
 
