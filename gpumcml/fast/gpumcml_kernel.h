@@ -231,7 +231,6 @@ typedef struct
   FLOAT *photon_uz;
 
   FLOAT *photon_w;            // photon weight
-  FLOAT *photon_sleft;        // leftover step size [cm]
 
   // index to layer where the photon resides
   UINT32 *photon_layer;

@@ -162,7 +162,6 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uy, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_uz, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_w, size) );
-  CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_sleft, size) );
   size = n_threads * sizeof(UINT32);
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_layer, size) );
 
@@ -241,7 +240,6 @@ void FreeDeviceSimStates(SimState *dstate, GPUThreadStates *tstates)
   cudaFree(tstates->photon_uy); tstates->photon_uy = NULL;
   cudaFree(tstates->photon_uz); tstates->photon_uz = NULL;
   cudaFree(tstates->photon_w); tstates->photon_w = NULL;
-  cudaFree(tstates->photon_sleft); tstates->photon_sleft = NULL;
   cudaFree(tstates->photon_layer); tstates->photon_layer = NULL;
   cudaFree(tstates->is_active); tstates->is_active = NULL;
 }

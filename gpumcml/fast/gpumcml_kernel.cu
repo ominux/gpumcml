@@ -65,41 +65,30 @@ UINT32 compute_Arz_overflow_count(FLOAT init_photon_w,
 
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize photon position (x, y, z), direction (ux, uy, uz), weight (w), 
-//   step size remainder (sleft), and current layer (layer) 
+//   and current layer (layer).
 //   Note: Infinitely narrow beam (pointing in the +z direction = downwards)
 //////////////////////////////////////////////////////////////////////////////
 __device__ void LaunchPhoton(FLOAT *x, FLOAT *y, FLOAT *z,
                              FLOAT *ux, FLOAT *uy, FLOAT *uz,
-                             FLOAT *w, FLOAT *sleft, UINT32 *layer)
+                             FLOAT *w, UINT32 *layer)
 {
   *x = *y = *z = MCML_FP_ZERO;
   *ux = *uy = MCML_FP_ZERO;
   *uz = FP_ONE;
   *w = d_simparam.init_photon_w;
-  *sleft = MCML_FP_ZERO;
   *layer = 1;
 }
 
 //////////////////////////////////////////////////////////////////////////////
 //   Compute the step size for a photon packet when it is in tissue
-//   If sleft is 0, calculate new step size: -log(rnd)/(mua+mus).
-//   Otherwise, pick up the leftover in sleft.
+//   Calculate new step size: -log(rnd)/(mua+mus).
 //////////////////////////////////////////////////////////////////////////////
 __device__ void ComputeStepSize(UINT32 layer,
-                                FLOAT *s_ptr, FLOAT *sleft_ptr,
+                                FLOAT *s_ptr,
                                 UINT64 *rnd_x, UINT32 *rnd_a)
 {
-  // Make a new step if no leftover.
-  FLOAT s = *sleft_ptr;
-  if (s == MCML_FP_ZERO)
-  {
-    FLOAT rand = rand_MWC_oc(rnd_x, rnd_a);
+	*s_ptr = -logf(rand_MWC_oc(rnd_x,rnd_a))* d_layerspecs[layer].rmuas;
 
-    s = -__logf(rand);
-  }
-
-  *s_ptr = s * d_layerspecs[layer].rmuas;
-  *sleft_ptr = MCML_FP_ZERO;
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -107,10 +96,9 @@ __device__ void ComputeStepSize(UINT32 layer,
 //   boundary between 2 layers.
 //   Return 1 for a hit, 0 otherwise.
 //   If the projected step hits the boundary, the photon steps to the boundary
-//   and the remainder of the step size is stored in sleft for the next iteration
 //////////////////////////////////////////////////////////////////////////////
 __device__ int HitBoundary(UINT32 layer, FLOAT z, FLOAT uz,
-                           FLOAT *s_ptr, FLOAT *sleft_ptr)
+                           FLOAT *s_ptr)
 {
   /* step size to boundary. */
   FLOAT dl_b; 
@@ -126,7 +114,6 @@ __device__ int HitBoundary(UINT32 layer, FLOAT z, FLOAT uz,
   {
     // No need to multiply by (mua + mus), as it is later
     // divided by (mua + mus) anyways (in the original version).
-    *sleft_ptr = (s - dl_b) * d_layerspecs[layer].muas;
     *s_ptr = dl_b;
   }
 
@@ -332,13 +319,13 @@ __global__ void InitThreadState(GPUThreadStates tstates)
 {
   FLOAT photon_x, photon_y, photon_z;
   FLOAT photon_ux, photon_uy, photon_uz;
-  FLOAT photon_w, photon_sleft;
+  FLOAT photon_w;
   UINT32 photon_layer;
 
   // Initialize the photon and copy into photon_<parameter x>
   LaunchPhoton(&photon_x, &photon_y, &photon_z,
     &photon_ux, &photon_uy, &photon_uz,
-    &photon_w, &photon_sleft, &photon_layer);
+    &photon_w, &photon_layer);
 
   // This is the unique ID for each thread (or thread ID = tid)
   UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
@@ -350,7 +337,6 @@ __global__ void InitThreadState(GPUThreadStates tstates)
   tstates.photon_uy[tid] = photon_uy;
   tstates.photon_uz[tid] = photon_uz;
   tstates.photon_w[tid] = photon_w;
-  tstates.photon_sleft[tid] = photon_sleft;
   tstates.photon_layer[tid] = photon_layer;
 
   tstates.is_active[tid] = 1;
@@ -363,7 +349,7 @@ __global__ void InitThreadState(GPUThreadStates tstates)
 __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
                                 FLOAT photon_x, FLOAT photon_y, FLOAT photon_z,
                                 FLOAT photon_ux, FLOAT photon_uy, FLOAT photon_uz,
-                                FLOAT photon_w, FLOAT photon_sleft, UINT32 photon_layer,
+                                FLOAT photon_w, UINT32 photon_layer,
                                 UINT64 rnd_x, UINT32 rnd_a,
                                 UINT32 is_active)
 {
@@ -379,7 +365,6 @@ __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
   tstates->photon_uy[tid] = photon_uy;
   tstates->photon_uz[tid] = photon_uz;
   tstates->photon_w[tid] = photon_w;
-  tstates->photon_sleft[tid] = photon_sleft;
   tstates->photon_layer[tid] = photon_layer;
 
   tstates->is_active[tid] = is_active;
@@ -392,7 +377,7 @@ __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
 __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
                                    FLOAT *photon_x, FLOAT *photon_y, FLOAT *photon_z,
                                    FLOAT *photon_ux, FLOAT *photon_uy, FLOAT *photon_uz,
-                                   FLOAT *photon_w, FLOAT *photon_sleft, UINT32 *photon_layer,
+                                   FLOAT *photon_w, UINT32 *photon_layer,
                                    UINT64 *rnd_x, UINT32 *rnd_a,
                                    UINT32 *is_active)
 {
@@ -408,7 +393,6 @@ __device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
   *photon_uy = tstates->photon_uy[tid];
   *photon_uz = tstates->photon_uz[tid];
   *photon_w = tstates->photon_w[tid];
-  *photon_sleft = tstates->photon_sleft[tid];
   *photon_layer = tstates->photon_layer[tid];
 
   *is_active = tstates->is_active[tid];
@@ -459,7 +443,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
   // photon structure stored in registers
   FLOAT photon_x, photon_y ,photon_z;
   FLOAT photon_ux, photon_uy, photon_uz;
-  FLOAT photon_w, photon_sleft;
+  FLOAT photon_w;
   UINT32 photon_layer;
 
   // random number seeds
@@ -473,7 +457,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
   RestoreThreadState(&d_state, &tstates,
     &photon_x, &photon_y, &photon_z,
     &photon_ux, &photon_uy, &photon_uz,
-    &photon_w, &photon_sleft, &photon_layer,
+    &photon_w, &photon_layer,
     &rnd_x, &rnd_a,
     &is_active);
 
@@ -540,12 +524,12 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       FLOAT photon_s;     // current step size
 
       //>>>>>>>>> StepSizeInTissue() in MCML
-      ComputeStepSize(photon_layer, &photon_s, &photon_sleft,
+      ComputeStepSize(photon_layer, &photon_s,
         &rnd_x, &rnd_a);
 
       //>>>>>>>>> HitBoundary() in MCML
       UINT32 photon_hit = HitBoundary(photon_layer,
-        photon_z, photon_uz, &photon_s, &photon_sleft);
+        photon_z, photon_uz, &photon_s);
 
       Hop(photon_s, photon_ux, photon_uy, photon_uz,
         &photon_x, &photon_y, &photon_z);
@@ -648,7 +632,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
           // Launch a new photon.
           LaunchPhoton(&photon_x, &photon_y, &photon_z,
             &photon_ux, &photon_uy, &photon_uz,
-            &photon_w, &photon_sleft, &photon_layer);
+            &photon_w, &photon_layer);
         }
         else
         {
@@ -723,7 +707,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
   // Save the thread state to the global memory.
   SaveThreadState(&d_state, &tstates, photon_x, photon_y, photon_z,
-    photon_ux, photon_uy, photon_uz, photon_w, photon_sleft,
+    photon_ux, photon_uy, photon_uz, photon_w,
     photon_layer,
     rnd_x, rnd_a,
     is_active);
