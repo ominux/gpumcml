@@ -65,7 +65,7 @@ UINT32 compute_Arz_overflow_count(FLOAT init_photon_w,
 
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize photon position (x, y, z), direction (ux, uy, uz), weight (w), 
-//   step size remainder (sleft), and current layer (layer) 
+//   and current layer (layer) 
 //   Note: Infinitely narrow beam (pointing in the +z direction = downwards)
 //////////////////////////////////////////////////////////////////////////////
 __device__ void LaunchPhoton(PhotonStructGPU *photon)
