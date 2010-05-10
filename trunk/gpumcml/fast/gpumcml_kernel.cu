@@ -246,7 +246,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
   FLOAT cost, sint; // cosine and sine of the polar deflection angle theta
   FLOAT cosp, sinp; // cosine and sine of the azimuthal angle psi
   FLOAT psi;
-  FLOAT SIGN;
+  //FLOAT SIGN;
   FLOAT temp;
   FLOAT last_ux, last_uy, last_uz;
   FLOAT rand;
@@ -264,7 +264,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
   *	Returns the cosine of the polar deflection angle theta.
   ****/
 
-  rand = rand_MWC_co(rnd_x, rnd_a);
+  rand = rand_MWC_oc(rnd_x, rnd_a);//change co-oc /EA
 
   cost = FP_TWO * rand - FP_ONE;
 
@@ -272,12 +272,12 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
   {
     temp = __fdividef((FP_ONE - g * g), FP_ONE + g*cost);
     cost = __fdividef(FP_ONE + g * g - temp*temp, FP_TWO * g);
-    cost = fmaxf(cost, -FP_ONE);
-    cost = fminf(cost, FP_ONE);
+    //cost = fmaxf(cost, -FP_ONE); //these are just here because of the bad PRNG in MCML
+    //cost = fminf(cost, FP_ONE);
   }
   sint = sqrtf(FP_ONE - cost * cost);
 
-  /* spin psi 0-2pi. */
+  // spin psi 0-2pi. 
   rand = rand_MWC_co(rnd_x, rnd_a);
 
   psi = FP_TWO * PI_const * rand;
@@ -291,15 +291,16 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
   last_uz = *uz;
 
   if (fabsf(last_uz) > COSZERO) 
-    /* normal incident. */
+    // normal incident. 
   {
     *ux = stcp;
     *uy = stsp;
-    SIGN = ((last_uz) >= MCML_FP_ZERO ? FP_ONE : -FP_ONE);
-    *uz = cost * SIGN;
+    //SIGN = ((last_uz) >= MCML_FP_ZERO ? FP_ONE : -FP_ONE);
+    //*uz = cost * SIGN;
+    *uz = copysignf(cost,last_uz); //This is equivalent to the above, but I used (*uz) = copysignf(cost,(*uz)*cost);
   }
   else 
-    /* regular incident. */
+    // regular incident. 
   {
     temp = rsqrtf(FP_ONE - last_uz * last_uz);
     *ux = (stcp * last_ux * last_uz - stsp * last_uy) * temp
@@ -308,7 +309,15 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
       + last_uy * cost;
     *uz = __fdividef(-stcp, temp) + last_uz * cost;
   }
+  
+  //Normalize
+  temp=rsqrtf((*ux)*(*ux)+(*uy)*(*uy)+(*uz)*(*uz));
+  (*ux) = (*ux)*temp;
+  (*uy) = (*uy)*temp;
+  (*uz) = (*uz)*temp;
+  
 }
+
 
 //////////////////////////////////////////////////////////////////////////////
 //   Initialize thread states (tstates), created to allow a large 
@@ -350,13 +359,13 @@ __device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
                                 FLOAT photon_x, FLOAT photon_y, FLOAT photon_z,
                                 FLOAT photon_ux, FLOAT photon_uy, FLOAT photon_uz,
                                 FLOAT photon_w, UINT32 photon_layer,
-                                UINT64 rnd_x, UINT32 rnd_a,
+                                UINT64 rnd_x, //UINT32 rnd_a,
                                 UINT32 is_active)
 {
   UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
 
   d_state->x[tid] = rnd_x;
-  d_state->a[tid] = rnd_a;
+  //d_state->a[tid] = rnd_a; This is not necessary as a does not change. /Erik
 
   tstates->photon_x[tid] = photon_x;
   tstates->photon_y[tid] = photon_y;
@@ -709,7 +718,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
   SaveThreadState(&d_state, &tstates, photon_x, photon_y, photon_z,
     photon_ux, photon_uy, photon_uz, photon_w,
     photon_layer,
-    rnd_x, rnd_a,
+    rnd_x,// rnd_a,
     is_active);
 }
 
