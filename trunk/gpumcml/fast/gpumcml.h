@@ -41,7 +41,7 @@ typedef float FLOAT;
 #define WEIGHT 1E-4F        
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE 16777216
+#define WEIGHT_SCALE 16777216 //equivalent to 0x1000000 (faster multiplication)
 
 #define PI_const 3.1415926F
 #define RPI 0.318309886F
