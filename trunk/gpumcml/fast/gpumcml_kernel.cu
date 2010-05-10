@@ -275,6 +275,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     //cost = fmaxf(cost, -FP_ONE); //these are just here because of the bad PRNG in MCML
     //cost = fminf(cost, FP_ONE);
   }
+
   sint = sqrtf(FP_ONE - cost * cost);
 
   // spin psi 0-2pi. 
@@ -300,7 +301,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     *uz = copysignf(cost,last_uz); //This is equivalent to the above, but I used (*uz) = copysignf(cost,(*uz)*cost);
   }
   else 
-    // regular incident. 
+    // Regular incident. 
   {
     temp = rsqrtf(FP_ONE - last_uz * last_uz);
     *ux = (stcp * last_ux * last_uz - stsp * last_uy) * temp
@@ -310,7 +311,7 @@ __device__ void Spin(FLOAT g, FLOAT *ux, FLOAT *uy, FLOAT *uz,
     *uz = __fdividef(-stcp, temp) + last_uz * cost;
   }
   
-  //Normalize
+  // Normalize
   temp=rsqrtf((*ux)*(*ux)+(*uy)*(*uy)+(*uz)*(*uz));
   (*ux) = (*ux)*temp;
   (*uy) = (*uy)*temp;
