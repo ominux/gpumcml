@@ -72,10 +72,18 @@ ifneq "$(strip $(MAX_REG_COUNT_SM20))" "0"
 NVCC_FLAGS_SM20 += -maxrregcount $(MAX_REG_COUNT_SM20)
 endif
 
+SRCS := $(PROG_BASE)_main.cu \
+		$(PROG_BASE)_kernel.cu	\
+		$(PROG_BASE)_mem.cu \
+		$(PROG_BASE)_rng.cu \
+		$(PROG_BASE)_io.c 	\
+		$(PROG_BASE)_kernel.h	\
+		$(PROG_BASE).h
+
 $(PROG_SM20): $(PROG_SM20).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
-$(PROG_SM20).cu_o: $(PROG_BASE)_main.cu
+$(PROG_SM20).cu_o: $(SRCS)
 	$(NVCC) $(NVCC_FLAGS_SM20) -o $@ -c $<
 
 clean_sm_20:
@@ -94,7 +102,7 @@ endif
 $(PROG_SM12): $(PROG_SM12).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
-$(PROG_SM12).cu_o: $(PROG_BASE)_main.cu
+$(PROG_SM12).cu_o: $(SRCS)
 	$(NVCC) $(NVCC_FLAGS_SM12) -o $@ -c $<
 
 clean_sm_12:
