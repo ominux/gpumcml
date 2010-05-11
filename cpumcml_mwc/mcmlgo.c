@@ -7,6 +7,9 @@
 
 #include "mcml.h"
 #include "mwc_prng.h"
+#include "dSFMT.h"
+
+//#define USE_MT_PRNG 1
 
 #define STANDARDTEST 0
   /* testing program using fixed rnd seed. */
@@ -84,25 +87,41 @@ double RandomNum(void)
 {
 
   static Boolean first_time=1;
-  //static int idum;	/* seed for ran3. */
-static unsigned long long x;
-  
-  if(first_time) {
-//if STANDARDTEST /* Use fixed seed to test the program. */
-    //idum = - 1;
-//#else
-    //idum = -(int)time(NULL)%(1<<15);
-	  /* use 16-bit integer as the seed. */
-//#endif
-    //ran3(&idum);
-    first_time = 0;
-    //idum = 1;
-x = 1;
-  }
-  
-  //return( (double)ran3(&idum) );
-return( (double)rand_MWC_co(&x) );
 
+  #ifdef USE_MT_PRNG
+	static dsfmt_t dsfmt;
+	
+	if(first_time)
+	{
+    	first_time = 0;
+	    uint32_t seed = time(NULL);
+	
+	    dsfmt_init_gen_rand(&dsfmt, seed);
+	    
+	    int i;
+	    printf("Starting MT PRNG with seed: %d \n",seed);
+	    for(i=0;i<10;i++)
+	    {
+	    	printf("%f \n",dsfmt_genrand_close_open(&dsfmt));	
+	    } 
+  	}
+  	return dsfmt_genrand_close_open(&dsfmt);
+  #else //use the MWC PRNG
+	static unsigned long long x;
+	if(first_time)
+	{
+		first_time = 0;
+    	x = time(NULL);
+	    int i;
+	    printf("Starting MWC PRNG with seed: %llu \n",x);
+	  	for(i=0;i<10;i++)
+		{
+			printf("%f \n",(double)rand_MWC_co(&x));	
+		}
+	} 
+	return( (double)rand_MWC_co(&x) ); 
+  #endif
+	
 }
 
 /***********************************************************
