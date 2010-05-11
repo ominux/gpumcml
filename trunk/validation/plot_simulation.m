@@ -2,7 +2,7 @@ clear all
 close all
 clc
 
-CMP = 0;
+CMP = 1;
 
 
 [FileName_ref,PathName_ref] = uigetfile('*.mco','Select .mco file to plot');

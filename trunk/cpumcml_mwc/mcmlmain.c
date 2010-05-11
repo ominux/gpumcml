@@ -17,12 +17,14 @@
 /* GNU cc does not support difftime() and CLOCKS_PER_SEC.*/
 #define GNUCC 0
 
+
 #if THINKCPROFILER
 #include <profile.h>
 #include <console.h>
 #endif
 
 #include "mcml.h"
+#include "dSFMT.h"
 
 // Temp global variable:
 //unsigned long long 
