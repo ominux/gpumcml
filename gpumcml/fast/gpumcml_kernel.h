@@ -82,23 +82,9 @@
  * NUM_THREADS_PER_BLOCK to decrease (due to hardware resource constraint).
  */
 
-// We choose the optimal number of threads per block
-// based on the GPU's Compute Capability (SM version).
-//
-// We map the SM version to a single index as follows:
-//    SM_MAJOR_VERSION * 4 + SM_MINOR_VERSION
-//
-//                                1.0 1.1 1.2  1.3  2.0
-// UINT32 g_n_threads_per_blk[8] = { 0,  0,  256, 256, 896, 0, 0, 0 };
-
-//Manual Selection of Architecture in Visual Studio
-#ifdef _WIN32 
-#define CUDA_ARCH 12
-#endif
-
-// By default, we assume Compute Capability 2.0.
+// By default, we assume the lowest Compute Capability we support: 1.2.
 #ifndef CUDA_ARCH
-#define CUDA_ARCH 20
+#define CUDA_ARCH 12
 #endif
 
 /////////////////////////////////////////////
@@ -115,20 +101,9 @@
 // #define USE_64B_ATOMIC_SMEM
 
 /////////////////////////////////////////////
-// Compute Capability 1.3
+// Compute Capability 1.2 or 1.3
 /////////////////////////////////////////////
-#elif CUDA_ARCH == 13
-
-#define NUM_THREADS_PER_BLOCK 320
-#define MAX_IR 26
-#define MAX_IZ 128
-#define USE_32B_ELEM_FOR_ARZ_SMEM
-#define N_A_RZ_COPIES 1
-
-/////////////////////////////////////////////
-// Compute Capability 1.2
-/////////////////////////////////////////////
-#elif CUDA_ARCH == 12
+#elif CUDA_ARCH == 12 || CUDA_ARCH == 13
 
 #define NUM_THREADS_PER_BLOCK 256
 #define MAX_IR 28

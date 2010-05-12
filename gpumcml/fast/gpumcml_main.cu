@@ -319,6 +319,9 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     Write_Simulation_Results(hss0, simulation, elapsedTime);
   }
 
+  cudaEventDestroy(start);
+  cudaEventDestroy(stop);
+
   // Free SimState structs.
   for (UINT32 i = 0; i < num_GPUs; ++i)
   {
