@@ -126,6 +126,76 @@ __device__ void Hop(PhotonStructGPU *photon)
 }
 
 //////////////////////////////////////////////////////////////////////////////
+//  Erik's version in CUDAMCML
+//////////////////////////////////////////////////////////////////////////////
+__device__ unsigned int Reflect(PhotonStructGPU* p, int new_layer,
+                                unsigned long long* x, unsigned int* a)
+{
+	//Calculates whether the photon is reflected (returns 1) or not (returns 0)
+	// Reflect() will also update the current photon layer (after transmission) and photon direction (both transmission and reflection)
+
+
+	float n1 = d_layerspecs[p->layer].n;
+	float n2 = d_layerspecs[new_layer].n;
+	float r;
+	float cos_angle_i = fabsf(p->uz);
+
+	if(n1==n2)//refraction index matching automatic transmission and no direction change
+	{	
+		p->layer = new_layer;
+		return 0u;
+	}
+
+	if(n2*n2<n1*n1*(1-cos_angle_i*cos_angle_i))//total internal reflection, no layer change but z-direction mirroring
+	{
+		p->uz *= -1.0f;
+		return 1u; 
+	}
+
+	if(cos_angle_i==1.0f)//normal incident
+	{		
+		r = __fdividef((n1-n2),(n1+n2));
+		if(rand_MWC_co(x,a)<=r*r)
+		{
+			//reflection, no layer change but z-direction mirroring
+			p->uz *= -1.0f;
+			return 1u;
+		}
+		else
+		{	//transmission, no direction change but layer change
+			p->layer = new_layer;
+			return 0u;
+		}
+	}
+	
+	//gives almost exactly the same results as the old MCML way of doing the calculation but does it slightly faster
+	// save a few multiplications, calculate cos_angle_i^2;
+	float e = __fdividef(n1*n1,n2*n2)*(1.0f-cos_angle_i*cos_angle_i); //e is the sin square of the transmission angle
+	r=2*sqrtf((1.0f-cos_angle_i*cos_angle_i)*(1.0f-e)*e*cos_angle_i*cos_angle_i);//use r as a temporary variable
+	e=e+(cos_angle_i*cos_angle_i)*(1.0f-2.0f*e);//Update the value of e
+	r = e*__fdividef((1.0f-e-r),((1.0f-e+r)*(e+r)));//Calculate r	
+
+	if(rand_MWC_co(x,a)<=r)
+	{ 
+		// Reflection, mirror z-direction!
+		p->uz *= -1.0f;
+		return 1u;
+	}
+	else
+	{	
+		// Transmission, update layer and direction
+		r = __fdividef(n1,n2);
+		e = r*r*(1.0f-cos_angle_i*cos_angle_i); //e is the sin square of the transmission angle
+		p->ux *= r;
+		p->uy *= r;
+		p->uz = copysignf(sqrtf(1-e) ,p->uz);
+		p->layer = new_layer;
+		return 0u;
+	}
+
+}
+
+//////////////////////////////////////////////////////////////////////////////
 //   UltraFast version (featuring reduced divergence compared to CPU-MCML)
 //   If a photon hits a boundary, determine whether the photon is transmitted
 //   into the next layer or reflected back by computing the internal reflectance
@@ -510,8 +580,45 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
       Hop(&photon);
 
-      if (photon.hit)
-        FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
+      if (photon.hit) {
+        //FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
+        
+////////////////////////////////ERIK'S IMPLEMENTATION//////////////////////////////////////////
+        UINT32 new_layer;
+
+        if (photon.uz > MCML_FP_ZERO)
+          new_layer = photon.layer+1;
+        else
+          new_layer = photon.layer-1;
+
+        if(Reflect(&photon,new_layer,&rnd_x, &rnd_a)==0u)//Check for reflection
+        { // Photon is transmitted
+          if (photon.layer == 0 || photon.layer > d_simparam.num_layers)
+          {
+            // transmitted
+            FLOAT uz2 = photon.uz;
+            UINT64 *ra_arr = d_state.Tt_ra;
+            if (photon.layer == 0)
+            {
+              // diffuse reflectance
+              uz2 = -uz2;
+              ra_arr = d_state.Rd_ra;
+            }
+
+            UINT32 ia = acosf(uz2) * FP_TWO * RPI * d_simparam.na;
+            UINT32 ir = __fdividef(sqrtf(photon.x*photon.x+photon.y*photon.y), d_simparam.dr);
+            if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
+
+            atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
+              (UINT32)(photon.w * WEIGHT_SCALE));
+
+            // Kill the photon.
+            photon.w = MCML_FP_ZERO;
+          }
+        }
+////////////////////////////////ERIK'S IMPLEMENTATION//////////////////////////////////////////
+
+      }
       else
       {
         //>>>>>>>>> Drop() in MCML
