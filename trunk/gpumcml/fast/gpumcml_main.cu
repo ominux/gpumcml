@@ -229,14 +229,19 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
   printf("------------------------------------------------------------\n\n");
 
-  cudaEvent_t start, stop;
-  float elapsedTime;
+  // Start simulation kernel exec timer
+  unsigned int execTimer = 0;
+  CUT_SAFE_CALL( cutCreateTimer( &execTimer));
+  CUT_SAFE_CALL( cutStartTimer(execTimer));
 
-  cudaEventCreate(&start);
-  cudaEventCreate(&stop);
+  //cudaEvent_t start, stop;
+  //float elapsedTime;
 
-  // Start the timer.
-  cudaEventRecord(start,0);
+  //cudaEventCreate(&start);
+  //cudaEventCreate(&stop);
+
+  //// Start the timer.
+  //cudaEventRecord(start,0);
 
   // Distribute all photons among GPUs.
   unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
@@ -306,21 +311,24 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
       }
     }
 
-    // End the timer.
-    cudaEventRecord(stop,0);
-    cudaEventSynchronize(stop);
+    //// End the timer.
+    //cudaEventRecord(stop,0);
+    //cudaEventSynchronize(stop);
 
-    // Compute the execution time.
-    cudaEventElapsedTime(&elapsedTime, start, stop);
-    // Convert to seconds.
-    elapsedTime /= 1000.0;
-    printf("\n*** Simulation time: %.3f sec\n\n", elapsedTime);
+    //// Compute the execution time.
+    //cudaEventElapsedTime(&elapsedTime, start, stop);
+    //// Convert to seconds.
+    //elapsedTime /= 1000.0;
+    //printf("\n*** Simulation time: %.3f sec\n\n", elapsedTime);
+    CUT_SAFE_CALL( cutStopTimer(execTimer));
+    printf( "\n\n>>>>>>Simulation time: %f (ms)\n", cutGetTimerValue(execTimer));
 
-    Write_Simulation_Results(hss0, simulation, elapsedTime);
+    Write_Simulation_Results(hss0, simulation, cutGetTimerValue(execTimer));
   }
 
-  cudaEventDestroy(start);
-  cudaEventDestroy(stop);
+  //cudaEventDestroy(start);
+  //cudaEventDestroy(stop);
+  CUT_SAFE_CALL( cutDeleteTimer( execTimer));
 
   // Free SimState structs.
   for (UINT32 i = 0; i < num_GPUs; ++i)
