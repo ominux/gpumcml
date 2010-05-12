@@ -1,6 +1,14 @@
 #
 # Makefile for GPUMCML on Linux
 #
+# It generates two executables: gpumcml.sm_12 and gpumcml.sm_20.
+#
+# gpumcml.sm_12 is optimized for GPUs with compute capability 1.2 and 1.3, but
+# can run on GPUs with compute capability 2.0 too.
+#
+# gpumcml.sm_20 is optimized for GPUs with compute capability 2.0, and CANNOT
+# run on GPUs with compute capability 1.2 or 1.3.
+#
 
 ######################################################################
 # Configurations
@@ -63,6 +71,17 @@ PROG_SM12 := $(PROG_BASE).sm_12
 default: $(PROG_SM20) $(PROG_SM12)
 
 ######################################################################
+# Source files
+######################################################################
+
+CU_SRCS := $(PROG_BASE)_main.cu \
+		$(PROG_BASE)_kernel.cu	\
+		$(PROG_BASE)_mem.cu \
+		$(PROG_BASE)_rng.cu \
+		$(PROG_BASE)_kernel.h	\
+		$(PROG_BASE).h
+
+######################################################################
 # GPU code compilation rules for Compute Capability 2.0
 ######################################################################
 
@@ -72,18 +91,10 @@ ifneq "$(strip $(MAX_REG_COUNT_SM20))" "0"
 NVCC_FLAGS_SM20 += -maxrregcount $(MAX_REG_COUNT_SM20)
 endif
 
-SRCS := $(PROG_BASE)_main.cu \
-		$(PROG_BASE)_kernel.cu	\
-		$(PROG_BASE)_mem.cu \
-		$(PROG_BASE)_rng.cu \
-		$(PROG_BASE)_io.c 	\
-		$(PROG_BASE)_kernel.h	\
-		$(PROG_BASE).h
-
 $(PROG_SM20): $(PROG_SM20).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
-$(PROG_SM20).cu_o: $(SRCS)
+$(PROG_SM20).cu_o: $(CU_SRCS)
 	$(NVCC) $(NVCC_FLAGS_SM20) -o $@ -c $<
 
 clean_sm_20:
@@ -94,7 +105,7 @@ clean_sm_20:
 ######################################################################
 
 GENCODE_SM12 := -gencode=arch=compute_12,code=\"sm_12,compute_12\"
-NVCC_FLAGS_SM12 := $(NVCC_FLAGS) $(GENCODE_SM12) $(GENCODE_SM20) -DCUDA_ARCH=12
+NVCC_FLAGS_SM12 := $(NVCC_FLAGS) $(GENCODE_SM12) -DCUDA_ARCH=12
 ifneq "$(strip $(MAX_REG_COUNT_SM12))" "0"
 NVCC_FLAGS_SM12 += -maxrregcount $(MAX_REG_COUNT_SM12)
 endif
@@ -102,7 +113,7 @@ endif
 $(PROG_SM12): $(PROG_SM12).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
-$(PROG_SM12).cu_o: $(SRCS)
+$(PROG_SM12).cu_o: $(CU_SRCS)
 	$(NVCC) $(NVCC_FLAGS_SM12) -o $@ -c $<
 
 clean_sm_12:
