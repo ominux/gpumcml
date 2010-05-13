@@ -35,18 +35,26 @@ typedef unsigned int UINT32;
 
 // MCML constants
 #ifdef SINGLE_PRECISION
+
+// NOTE: Single Precision
 typedef float FLOAT;
 
 // Critical weight for roulette
 #define WEIGHT 1E-4F        
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE 16777216 //equivalent to 0x1000000 (faster multiplication)
+//
+// This factor is preferred to be a power of 2, so that we can make the
+// following precision claim:
+//      If this factor is 2^N, we maintain N-bit binary digit precision.
+//
+// Using a power of 2 here can also make multiplication/division faster.
+//
+#define WEIGHT_SCALE ((FLOAT)(2<<24))
 
 #define PI_const 3.1415926F
 #define RPI 0.318309886F
 
-//NOTE: Single Precision
 #define COSNINETYDEG 1.0E-6F
 #define COSZERO (1.0F - 1.0E-6F)   
 #define CHANCE 0.1F
@@ -55,19 +63,20 @@ typedef float FLOAT;
 #define FP_ONE  1.0F
 #define FP_TWO  2.0F
 
-#else
+#else   // SINGLE_PRECISION
+
+// NOTE: Double Precision
 typedef double FLOAT;
 
 // Critical weight for roulette
 #define WEIGHT 1E-4     
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE 12000000
+#define WEIGHT_SCALE ((FLOAT)(2<<24))
 
 #define PI_const 3.1415926
 #define RPI 0.318309886
 
-//NOTE: Double Precision
 #define COSNINETYDEG 1.0E-6
 #define COSZERO (1.0 - 1.0E-12)    
 #define CHANCE 0.1
@@ -76,7 +85,7 @@ typedef double FLOAT;
 #define FP_ONE  1.0
 #define FP_TWO  2.0
 
-#endif
+#endif  // SINGLE_PRECISION
 
 #define STR_LEN 200
 
@@ -86,19 +95,19 @@ typedef double FLOAT;
 // Data structure for specifying each layer
 typedef struct
 {
-  FLOAT z_min;		// Layer z_min [cm]
-  FLOAT z_max;		// Layer z_max [cm]
-  FLOAT mutr;			// Reciprocal mu_total [cm]
-  FLOAT mua;			// Absorption coefficient [1/cm]
-  FLOAT g;			  // Anisotropy factor [-]
-  FLOAT n;			  // Refractive index [-]
+  float z_min;		// Layer z_min [cm]
+  float z_max;		// Layer z_max [cm]
+  float mutr;			// Reciprocal mu_total [cm]
+  float mua;			// Absorption coefficient [1/cm]
+  float g;			  // Anisotropy factor [-]
+  float n;			  // Refractive index [-]
 } LayerStruct;
 
 // Detection Grid specifications
 typedef struct
 {
-  FLOAT dr;		    // Detection grid resolution, r-direction [cm]
-  FLOAT dz;		    // Detection grid resolution, z-direction [cm]
+  float dr;		    // Detection grid resolution, r-direction [cm]
+  float dz;		    // Detection grid resolution, z-direction [cm]
 
   UINT32 na;		  // Number of grid elements in angular-direction [-]
   UINT32 nr;		  // Number of grid elements in r-direction
@@ -118,7 +127,7 @@ typedef struct
 
   UINT32 number_of_photons;
   int ignoreAdetection;
-  FLOAT start_weight;
+  float start_weight;
 
   DetStruct det;
 

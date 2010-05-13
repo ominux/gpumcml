@@ -31,6 +31,24 @@
 #include "gpumcml_kernel.h"
 #include "gpumcml_rng.cu"
 
+// We use different math intrinsics for single- and double-precision.
+#ifdef SINGLE_PRECISION
+#define FAST_DIV(x,y) __fdividef(x,y)
+#define SQRT(x) sqrtf(x)
+#define RSQRT(x) rsqrtf(x)
+#define LOG(x) logf(x)
+#else
+// This is defined by the CUDA compiler.
+#if __CUDA_ARCH__ >= 200
+#define FAST_DIV(x,y) __ddiv_rn(x,y)
+#else
+#define FAST_DIV(x,y) (x/y)
+#endif
+#define SQRT(x) sqrt(x)
+#define RSQRT(x) rsqrt(x)
+#define LOG(x) log(x)
+#endif
+
 //////////////////////////////////////////////////////////////////////////////
 // This host routine computes the maximum element value of A_rz in shared
 // memory, that indicates an imminent overflow.
@@ -84,7 +102,8 @@ __device__ void LaunchPhoton(PhotonStructGPU *photon)
 __device__ void ComputeStepSize(PhotonStructGPU *photon,
                                 UINT64 *rnd_x, UINT32 *rnd_a)
 {
-  photon->s = -logf(rand_MWC_oc(rnd_x,rnd_a))* d_layerspecs[photon->layer].rmuas;
+  photon->s = -LOG(rand_MWC_oc(rnd_x,rnd_a))
+    * d_layerspecs[photon->layer].rmuas;
 }
 
 
@@ -102,7 +121,7 @@ __device__ int HitBoundary(PhotonStructGPU *photon)
   /* Distance to the boundary. */
   FLOAT z_bound = (photon->uz > MCML_FP_ZERO) ?
     d_layerspecs[photon->layer].z1 : d_layerspecs[photon->layer].z0;
-  dl_b = __fdividef(z_bound - photon->z, photon->uz);     // dl_b > 0
+  dl_b = FAST_DIV(z_bound - photon->z, photon->uz);     // dl_b > 0
 
   UINT32 hit_boundary = (photon->uz != MCML_FP_ZERO) && (photon->s > dl_b);
   if (hit_boundary)
@@ -126,81 +145,12 @@ __device__ void Hop(PhotonStructGPU *photon)
 }
 
 //////////////////////////////////////////////////////////////////////////////
-//  Erik's version in CUDAMCML
-//////////////////////////////////////////////////////////////////////////////
-__device__ unsigned int Reflect(PhotonStructGPU* p, int new_layer,
-                                unsigned long long* x, unsigned int* a)
-{
-	//Calculates whether the photon is reflected (returns 1) or not (returns 0)
-	// Reflect() will also update the current photon layer (after transmission) and photon direction (both transmission and reflection)
-
-
-	float n1 = d_layerspecs[p->layer].n;
-	float n2 = d_layerspecs[new_layer].n;
-	float r;
-	float cos_angle_i = fabsf(p->uz);
-
-	if(n1==n2)//refraction index matching automatic transmission and no direction change
-	{	
-		p->layer = new_layer;
-		return 0u;
-	}
-
-	if(n2*n2<n1*n1*(1-cos_angle_i*cos_angle_i))//total internal reflection, no layer change but z-direction mirroring
-	{
-		p->uz *= -1.0f;
-		return 1u; 
-	}
-
-	if(cos_angle_i==1.0f)//normal incident
-	{		
-		r = __fdividef((n1-n2),(n1+n2));
-		if(rand_MWC_co(x,a)<=r*r)
-		{
-			//reflection, no layer change but z-direction mirroring
-			p->uz *= -1.0f;
-			return 1u;
-		}
-		else
-		{	//transmission, no direction change but layer change
-			p->layer = new_layer;
-			return 0u;
-		}
-	}
-	
-	//gives almost exactly the same results as the old MCML way of doing the calculation but does it slightly faster
-	// save a few multiplications, calculate cos_angle_i^2;
-	float e = __fdividef(n1*n1,n2*n2)*(1.0f-cos_angle_i*cos_angle_i); //e is the sin square of the transmission angle
-	r=2*sqrtf((1.0f-cos_angle_i*cos_angle_i)*(1.0f-e)*e*cos_angle_i*cos_angle_i);//use r as a temporary variable
-	e=e+(cos_angle_i*cos_angle_i)*(1.0f-2.0f*e);//Update the value of e
-	r = e*__fdividef((1.0f-e-r),((1.0f-e+r)*(e+r)));//Calculate r	
-
-	if(rand_MWC_co(x,a)<=r)
-	{ 
-		// Reflection, mirror z-direction!
-		p->uz *= -1.0f;
-		return 1u;
-	}
-	else
-	{	
-		// Transmission, update layer and direction
-		r = __fdividef(n1,n2);
-		e = r*r*(1.0f-cos_angle_i*cos_angle_i); //e is the sin square of the transmission angle
-		p->ux *= r;
-		p->uy *= r;
-		p->uz = copysignf(sqrtf(1-e) ,p->uz);
-		p->layer = new_layer;
-		return 0u;
-	}
-
-}
-
-//////////////////////////////////////////////////////////////////////////////
 //   UltraFast version (featuring reduced divergence compared to CPU-MCML)
 //   If a photon hits a boundary, determine whether the photon is transmitted
 //   into the next layer or reflected back by computing the internal reflectance
 //////////////////////////////////////////////////////////////////////////////
-__device__ void FastReflectTransmit(PhotonStructGPU *photon, SimState *d_state_ptr,
+__device__ void FastReflectTransmit(PhotonStructGPU *photon,
+                                    SimState *d_state_ptr,
                                     UINT64 *rnd_x, UINT32 *rnd_a)
 {
   /* Collect all info that depend on the sign of "uz". */
@@ -233,28 +183,34 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon, SimState *d_state_p
     // incident and transmit refractive index
     FLOAT ni = d_layerspecs[photon->layer].n;
     FLOAT nt = d_layerspecs[new_layer].n;
-    FLOAT ni_nt = __fdividef(ni, nt);   // reused later
+    FLOAT ni_nt = FAST_DIV(ni, nt);   // reused later
 
-    FLOAT sa1 = sqrtf(FP_ONE-ca1*ca1);
+    FLOAT sa1 = SQRT(FP_ONE-ca1*ca1);
+    if (ca1 > COSZERO) sa1 = MCML_FP_ZERO;
     FLOAT sa2 = fminf(ni_nt * sa1, FP_ONE);
-    if (ca1 > COSZERO) sa2 = sa1;
-    FLOAT uz1 = sqrtf(FP_ONE-sa2*sa2);    // uz1 = ca2
+    FLOAT uz1 = SQRT(FP_ONE-sa2*sa2);    // uz1 = ca2
 
     FLOAT ca1ca2 = ca1 * uz1;
     FLOAT sa1sa2 = sa1 * sa2;
     FLOAT sa1ca2 = sa1 * uz1;
     FLOAT ca1sa2 = ca1 * sa2;
 
+    // normal incidence: [(1-ni_nt)/(1+ni_nt)]^2
+    // We ensure that ca1ca2 = 1, sa1sa2 = 0, sa1ca2 = 1, ca1sa2 = ni_nt
+    if (ca1 > COSZERO)
+    {
+      sa1ca2 = FP_ONE;
+      ca1sa2 = ni_nt;
+    }
+
     FLOAT cam = ca1ca2 + sa1sa2; /* c- = cc + ss. */
     FLOAT sap = sa1ca2 + ca1sa2; /* s+ = sc + cs. */
     FLOAT sam = sa1ca2 - ca1sa2; /* s- = sc - cs. */
 
-    FLOAT rFresnel = __fdividef(sam, sap*cam);
+    FLOAT rFresnel = FAST_DIV(sam, sap*cam);
     rFresnel *= rFresnel;
     rFresnel *= (ca1ca2*ca1ca2 + sa1sa2*sa1sa2);
 
-    // Hope "uz1" is very close to "ca1".
-    if (ca1 > COSZERO) rFresnel = MCML_FP_ZERO;
     // In this case, we do not care if "uz1" is exactly 0.
     if (ca1 < COSNINETYDEG || sa2 == FP_ONE) rFresnel = FP_ONE;
 
@@ -283,7 +239,7 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon, SimState *d_state_p
         }
 
         UINT32 ia = acosf(uz2) * FP_TWO * RPI * d_simparam.na;
-        UINT32 ir = __fdividef(sqrtf(photon->x*photon->x+photon->y*photon->y), d_simparam.dr);
+        UINT32 ir = FAST_DIV(SQRT(photon->x*photon->x+photon->y*photon->y), d_simparam.dr);
         if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
 
         atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
@@ -330,18 +286,23 @@ __device__ void Spin(FLOAT g, PhotonStructGPU *photon,
 
   if (g != MCML_FP_ZERO)
   {
-    temp = __fdividef((FP_ONE - g * g), FP_ONE + g*cost);
-    cost = __fdividef(FP_ONE + g * g - temp*temp, FP_TWO * g);
+    temp = FAST_DIV((FP_ONE - g * g), FP_ONE + g*cost);
+    cost = FAST_DIV(FP_ONE + g * g - temp*temp, FP_TWO * g);
     //cost = fmaxf(cost, -FP_ONE); //these are just here because of the bad PRNG in MCML
     //cost = fminf(cost, FP_ONE);
   }
-  sint = sqrtf(FP_ONE - cost * cost);
+  sint = SQRT(FP_ONE - cost * cost);
 
   /* spin psi 0-2pi. */
   rand = rand_MWC_co(rnd_x, rnd_a);
 
   psi = FP_TWO * PI_const * rand;
+#ifdef SINGLE_PRECISION
   __sincosf(psi, &sinp, &cosp);
+#else
+  sinp = sin(psi);
+  cosp = cos(psi);
+#endif
 
   FLOAT stcp = sint * cosp;
   FLOAT stsp = sint * sinp;
@@ -360,18 +321,18 @@ __device__ void Spin(FLOAT g, PhotonStructGPU *photon,
   else 
   // Regular incident. 
   {
-    temp = rsqrtf(FP_ONE - last_uz * last_uz);
+    temp = RSQRT(FP_ONE - last_uz * last_uz);
     photon->ux = (stcp * last_ux * last_uz - stsp * last_uy) * temp
       + last_ux * cost;
     photon->uy = (stcp * last_uy * last_uz + stsp * last_ux) * temp
       + last_uy * cost;
-    photon->uz = __fdividef(-stcp, temp) + last_uz * cost;
+    photon->uz = FAST_DIV(-stcp, temp) + last_uz * cost;
   }
 
   // Normalize unit vector to ensure its magnitude is 1 (unity) 
   // only required in 32-bit floating point version
 #ifdef SINGLE_PRECISION
-  temp=rsqrtf(photon->ux*photon->ux+photon->uy*photon->uy+photon->uz*photon->uz);
+  temp=RSQRT(photon->ux*photon->ux+photon->uy*photon->uy+photon->uz*photon->uz);
   photon->ux = photon->ux *temp;
   photon->uy = photon->uy *temp;
   photon->uz = photon->uz *temp;
@@ -580,44 +541,9 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
       Hop(&photon);
 
-      if (photon.hit) {
-        //FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
-        
-////////////////////////////////ERIK'S IMPLEMENTATION//////////////////////////////////////////
-        UINT32 new_layer;
-
-        if (photon.uz > MCML_FP_ZERO)
-          new_layer = photon.layer+1;
-        else
-          new_layer = photon.layer-1;
-
-        if(Reflect(&photon,new_layer,&rnd_x, &rnd_a)==0u)//Check for reflection
-        { // Photon is transmitted
-          if (photon.layer == 0 || photon.layer > d_simparam.num_layers)
-          {
-            // transmitted
-            FLOAT uz2 = photon.uz;
-            UINT64 *ra_arr = d_state.Tt_ra;
-            if (photon.layer == 0)
-            {
-              // diffuse reflectance
-              uz2 = -uz2;
-              ra_arr = d_state.Rd_ra;
-            }
-
-            UINT32 ia = acosf(uz2) * FP_TWO * RPI * d_simparam.na;
-            UINT32 ir = __fdividef(sqrtf(photon.x*photon.x+photon.y*photon.y), d_simparam.dr);
-            if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
-
-            atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
-              (UINT32)(photon.w * WEIGHT_SCALE));
-
-            // Kill the photon.
-            photon.w = MCML_FP_ZERO;
-          }
-        }
-////////////////////////////////ERIK'S IMPLEMENTATION//////////////////////////////////////////
-
+      if (photon.hit)
+      {
+        FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
       }
       else
       {
@@ -628,10 +554,10 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
         if (ignoreAdetection == 0)
         {
           // automatic __float2uint_rz
-          UINT32 iz = __fdividef(photon.z, d_simparam.dz);
+          UINT32 iz = FAST_DIV(photon.z, d_simparam.dz);
           // automatic __float2uint_rz
-          UINT32 ir = __fdividef(
-            sqrtf(photon.x * photon.x + photon.y * photon.y),
+          UINT32 ir = FAST_DIV(
+            SQRT(photon.x * photon.x + photon.y * photon.y),
             d_simparam.dr);
 
           // Only record if photon is not at the edge!!
@@ -664,11 +590,8 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
               else
 #endif
               {
-                // if (ir > 1024)
-                {
                 // Write it to the global memory directly.
                 atomicAdd(&g_A_rz[last_addr], (UINT64)last_w);
-                }
               }
 
               last_ir = ir; last_iz = iz;
@@ -743,20 +666,14 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     // NOTE: last_w == 0 if inactive.
     if (last_w > 0)
     {
-#if 1
       // Commit to the global memory directly.
+      // TODO: could we commit it to the shared memory, or does it matter?
       atomicAdd(&g_A_rz[last_addr], last_w);
-#else
-      // Commit to A_rz_shared.
-      UINT32 s_addr = last_ir * MAX_IZ + last_iz;
-      atomicAdd(&g_A_rz[s_addr], last_w);
-#endif
     }
   }
 
   //////////////////////////////////////////////////////////////////////////
 
-#if 1
 #ifndef USE_TRUE_CACHE
   if (ignoreAdetection == 0)
   {
@@ -766,7 +683,6 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       Flush_Arz(g_A_rz, A_rz_shared, i);
     }
   }
-#endif
 #endif
 
   //////////////////////////////////////////////////////////////////////////

@@ -50,7 +50,7 @@ CFLAGS := -Wall -O3
 LDFLAGS := $(LIBCUDART_DIR) -Lcutil-linux
 
 NVCC_FLAGS := -I$(CUDA_INSTALL_ROOT)/include -Icutil-linux
-NVCC_FLAGS += -O3 -DUNIX -use_fast_math #-keep # -deviceemu
+NVCC_FLAGS += -O3 -DUNIX -use_fast_math
 NVCC_FLAGS += -Xptxas -v
 #export PTX_FLAGS := $(PTXAS_FLAGS) -maxrregcount 64 -mem -v
 
@@ -90,6 +90,7 @@ NVCC_FLAGS_SM20 := $(NVCC_FLAGS) $(GENCODE_SM20) -DCUDA_ARCH=20
 ifneq "$(strip $(MAX_REG_COUNT_SM20))" "0"
 NVCC_FLAGS_SM20 += -maxrregcount $(MAX_REG_COUNT_SM20)
 endif
+NVCC_FLAGS_SM20 += #-keep # -deviceemu
 
 $(PROG_SM20): $(PROG_SM20).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
@@ -109,6 +110,7 @@ NVCC_FLAGS_SM12 := $(NVCC_FLAGS) $(GENCODE_SM12) -DCUDA_ARCH=12
 ifneq "$(strip $(MAX_REG_COUNT_SM12))" "0"
 NVCC_FLAGS_SM12 += -maxrregcount $(MAX_REG_COUNT_SM12)
 endif
+NVCC_FLAGS_SM12 += #-keep # -deviceemu
 
 $(PROG_SM12): $(PROG_SM12).cu_o gpumcml_io.o
 	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
