@@ -37,7 +37,7 @@ typedef unsigned int UINT32;
 #ifdef SINGLE_PRECISION
 
 // NOTE: Single Precision
-typedef float FLOAT;
+typedef float GFLOAT;
 
 // Critical weight for roulette
 #define WEIGHT 1E-4F        
@@ -50,7 +50,7 @@ typedef float FLOAT;
 //
 // Using a power of 2 here can also make multiplication/division faster.
 //
-#define WEIGHT_SCALE ((FLOAT)(1<<24))
+#define WEIGHT_SCALE ((GFLOAT)(1<<24))
 
 #define PI_const 3.1415926F
 #define RPI 0.318309886F
@@ -66,13 +66,13 @@ typedef float FLOAT;
 #else   // SINGLE_PRECISION
 
 // NOTE: Double Precision
-typedef double FLOAT;
+typedef double GFLOAT;
 
 // Critical weight for roulette
 #define WEIGHT 1E-4     
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE ((FLOAT)(1<<24))
+#define WEIGHT_SCALE ((GFLOAT)(1<<24))
 
 #define PI_const 3.1415926
 #define RPI 0.318309886

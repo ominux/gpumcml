@@ -156,10 +156,10 @@ typedef UINT64 ARZ_SMEM_TY;
 
 typedef struct __align__(16)
 {
-  FLOAT init_photon_w;      // initial photon weight 
+  GFLOAT init_photon_w;      // initial photon weight 
 
-  FLOAT dz;                 // z grid separation.[cm] 
-  FLOAT dr;                 // r grid separation.[cm] 
+  GFLOAT dz;                 // z grid separation.[cm] 
+  GFLOAT dr;                 // r grid separation.[cm] 
 
   UINT32 na;                // array range 0..na-1. 
   UINT32 nz;                // array range 0..nz-1. 
@@ -171,16 +171,16 @@ typedef struct __align__(16)
 
 typedef struct __align__(16)
 {
-  FLOAT z0, z1;             // z coordinates of a layer. [cm] 
-  FLOAT n;                  // refractive index of a layer. 
+  GFLOAT z0, z1;             // z coordinates of a layer. [cm] 
+  GFLOAT n;                  // refractive index of a layer. 
 
-  FLOAT muas;               // mua + mus 
-  FLOAT rmuas;              // 1/(mua+mus) 
-  FLOAT mua_muas;           // mua/(mua+mus)
+  GFLOAT muas;               // mua + mus 
+  GFLOAT rmuas;              // 1/(mua+mus) 
+  GFLOAT mua_muas;           // mua/(mua+mus)
 
-  FLOAT g;                  // anisotropy.
+  GFLOAT g;                  // anisotropy.
 
-  FLOAT cos_crit0, cos_crit1;
+  GFLOAT cos_crit0, cos_crit1;
 } LayerStructGPU;
 
 // The max number of layers supported (MAX_LAYERS including 2 ambient layers)
@@ -201,16 +201,16 @@ __constant__ LayerStructGPU d_layerspecs[MAX_LAYERS];
 typedef struct
 {
   // cartesian coordinates of the photon [cm]
-  FLOAT *photon_x;
-  FLOAT *photon_y;
-  FLOAT *photon_z;
+  GFLOAT *photon_x;
+  GFLOAT *photon_y;
+  GFLOAT *photon_z;
 
   // directional cosines of the photon
-  FLOAT *photon_ux;
-  FLOAT *photon_uy;
-  FLOAT *photon_uz;
+  GFLOAT *photon_ux;
+  GFLOAT *photon_uy;
+  GFLOAT *photon_uz;
 
-  FLOAT *photon_w;            // photon weight
+  GFLOAT *photon_w;            // photon weight
 
   // index to layer where the photon resides
   UINT32 *photon_layer;
@@ -221,19 +221,19 @@ typedef struct
 typedef struct
 {
   // cartesian coordinates of the photon [cm]
-  FLOAT x;
-  FLOAT y;
-  FLOAT z;
+  GFLOAT x;
+  GFLOAT y;
+  GFLOAT z;
 
   // directional cosines of the photon
-  FLOAT ux;
-  FLOAT uy;
-  FLOAT uz;
+  GFLOAT ux;
+  GFLOAT uy;
+  GFLOAT uz;
 
-  FLOAT w;            // photon weight
+  GFLOAT w;            // photon weight
 
-  FLOAT s;            // step size [cm]
-  //FLOAT sleft;        // leftover step size [cm]
+  GFLOAT s;            // step size [cm]
+  //GFLOAT sleft;        // leftover step size [cm]
   //removed as an optimization to reduce code divergence
 
   // index to layer where the photon resides
