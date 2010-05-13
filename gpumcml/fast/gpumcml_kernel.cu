@@ -64,7 +64,7 @@
 //
 // <n_layers> is the length of <layers>, excluding the top and bottom layers.
 //////////////////////////////////////////////////////////////////////////////
-UINT32 compute_Arz_overflow_count(FLOAT init_photon_w,
+UINT32 compute_Arz_overflow_count(GFLOAT init_photon_w,
         LayerStruct *layers, UINT32 n_layers, UINT32 n_threads_per_tblk)
 {
     // Determine the largest mua/(mua+mus) over all layers.
@@ -116,10 +116,10 @@ __device__ void ComputeStepSize(PhotonStructGPU *photon,
 __device__ int HitBoundary(PhotonStructGPU *photon)
 {
   /* step size to boundary. */
-  FLOAT dl_b; 
+  GFLOAT dl_b; 
 
   /* Distance to the boundary. */
-  FLOAT z_bound = (photon->uz > MCML_FP_ZERO) ?
+  GFLOAT z_bound = (photon->uz > MCML_FP_ZERO) ?
     d_layerspecs[photon->layer].z1 : d_layerspecs[photon->layer].z0;
   dl_b = FAST_DIV(z_bound - photon->z, photon->uz);     // dl_b > 0
 
@@ -154,7 +154,7 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
                                     UINT64 *rnd_x, UINT32 *rnd_a)
 {
   /* Collect all info that depend on the sign of "uz". */
-  FLOAT cos_crit;
+  GFLOAT cos_crit;
   UINT32 new_layer;
   if (photon->uz > MCML_FP_ZERO)
   {
@@ -168,7 +168,7 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
   }
 
   // cosine of the incident angle (0 to 90 deg)
-  FLOAT ca1 = fabsf(photon->uz);
+  GFLOAT ca1 = fabsf(photon->uz);
 
   // The default move is to reflect.
   photon->uz = -photon->uz;
@@ -181,19 +181,19 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
     /* Compute the Fresnel reflectance. */
 
     // incident and transmit refractive index
-    FLOAT ni = d_layerspecs[photon->layer].n;
-    FLOAT nt = d_layerspecs[new_layer].n;
-    FLOAT ni_nt = FAST_DIV(ni, nt);   // reused later
+    GFLOAT ni = d_layerspecs[photon->layer].n;
+    GFLOAT nt = d_layerspecs[new_layer].n;
+    GFLOAT ni_nt = FAST_DIV(ni, nt);   // reused later
 
-    FLOAT sa1 = SQRT(FP_ONE-ca1*ca1);
+    GFLOAT sa1 = SQRT(FP_ONE-ca1*ca1);
     if (ca1 > COSZERO) sa1 = MCML_FP_ZERO;
-    FLOAT sa2 = fminf(ni_nt * sa1, FP_ONE);
-    FLOAT uz1 = SQRT(FP_ONE-sa2*sa2);    // uz1 = ca2
+    GFLOAT sa2 = fminf(ni_nt * sa1, FP_ONE);
+    GFLOAT uz1 = SQRT(FP_ONE-sa2*sa2);    // uz1 = ca2
 
-    FLOAT ca1ca2 = ca1 * uz1;
-    FLOAT sa1sa2 = sa1 * sa2;
-    FLOAT sa1ca2 = sa1 * uz1;
-    FLOAT ca1sa2 = ca1 * sa2;
+    GFLOAT ca1ca2 = ca1 * uz1;
+    GFLOAT sa1sa2 = sa1 * sa2;
+    GFLOAT sa1ca2 = sa1 * uz1;
+    GFLOAT ca1sa2 = ca1 * sa2;
 
     // normal incidence: [(1-ni_nt)/(1+ni_nt)]^2
     // We ensure that ca1ca2 = 1, sa1sa2 = 0, sa1ca2 = 1, ca1sa2 = ni_nt
@@ -203,18 +203,18 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
       ca1sa2 = ni_nt;
     }
 
-    FLOAT cam = ca1ca2 + sa1sa2; /* c- = cc + ss. */
-    FLOAT sap = sa1ca2 + ca1sa2; /* s+ = sc + cs. */
-    FLOAT sam = sa1ca2 - ca1sa2; /* s- = sc - cs. */
+    GFLOAT cam = ca1ca2 + sa1sa2; /* c- = cc + ss. */
+    GFLOAT sap = sa1ca2 + ca1sa2; /* s+ = sc + cs. */
+    GFLOAT sam = sa1ca2 - ca1sa2; /* s- = sc - cs. */
 
-    FLOAT rFresnel = FAST_DIV(sam, sap*cam);
+    GFLOAT rFresnel = FAST_DIV(sam, sap*cam);
     rFresnel *= rFresnel;
     rFresnel *= (ca1ca2*ca1ca2 + sa1sa2*sa1sa2);
 
     // In this case, we do not care if "uz1" is exactly 0.
     if (ca1 < COSNINETYDEG || sa2 == FP_ONE) rFresnel = FP_ONE;
 
-    FLOAT rand = rand_MWC_co(rnd_x, rnd_a);
+    GFLOAT rand = rand_MWC_co(rnd_x, rnd_a);
 
     if (rFresnel < rand)
     {
@@ -229,7 +229,7 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
       if (photon->layer == 0 || photon->layer > d_simparam.num_layers)
       {
         // transmitted
-        FLOAT uz2 = photon->uz;
+        GFLOAT uz2 = photon->uz;
         UINT64 *ra_arr = d_state_ptr->Tt_ra;
         if (photon->layer == 0)
         {
@@ -257,15 +257,15 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
 //	 sampling the polar deflection angle theta and the
 // 	 azimuthal angle psi.
 //////////////////////////////////////////////////////////////////////////////
-__device__ void Spin(FLOAT g, PhotonStructGPU *photon,
+__device__ void Spin(GFLOAT g, PhotonStructGPU *photon,
                      UINT64 *rnd_x, UINT32 *rnd_a)
 {
-  FLOAT cost, sint; // cosine and sine of the polar deflection angle theta
-  FLOAT cosp, sinp; // cosine and sine of the azimuthal angle psi
-  FLOAT psi;
-  FLOAT temp;
-  FLOAT last_ux, last_uy, last_uz;
-  FLOAT rand;
+  GFLOAT cost, sint; // cosine and sine of the polar deflection angle theta
+  GFLOAT cosp, sinp; // cosine and sine of the azimuthal angle psi
+  GFLOAT psi;
+  GFLOAT temp;
+  GFLOAT last_ux, last_uy, last_uz;
+  GFLOAT rand;
 
   /***********************************************************
   *	>>>>>>> SpinTheta
@@ -304,8 +304,8 @@ __device__ void Spin(FLOAT g, PhotonStructGPU *photon,
   cosp = cos(psi);
 #endif
 
-  FLOAT stcp = sint * cosp;
-  FLOAT stsp = sint * sinp;
+  GFLOAT stcp = sint * cosp;
+  GFLOAT stsp = sint * sinp;
 
   last_ux = photon->ux;
   last_uy = photon->uy;
@@ -548,7 +548,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       else
       {
         //>>>>>>>>> Drop() in MCML
-        FLOAT dwa = photon.w * d_layerspecs[photon.layer].mua_muas;
+        GFLOAT dwa = photon.w * d_layerspecs[photon.layer].mua_muas;
         photon.w -= dwa;
 
         if (ignoreAdetection == 0)
@@ -617,7 +617,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
       ****/
       if (photon.w < WEIGHT)
       {
-        FLOAT rand = rand_MWC_co(&rnd_x, &rnd_a);
+        GFLOAT rand = rand_MWC_co(&rnd_x, &rnd_a);
 
         // This photon survives the roulette.
         if (photon.w != MCML_FP_ZERO && rand < CHANCE)

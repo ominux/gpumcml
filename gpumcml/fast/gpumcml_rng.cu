@@ -29,12 +29,12 @@
 //   Generates a random number between 0 and 1 [0,1) 
 //////////////////////////////////////////////////////////////////////////////
 // DAVID: how to generate a double?
-__device__ FLOAT rand_MWC_co(UINT64* x,UINT32* a)
+__device__ GFLOAT rand_MWC_co(UINT64* x,UINT32* a)
 {
   *x=(*x&0xffffffffull)*(*a)+(*x>>32);
-  return __fdividef(__uint2float_rz((UINT32)(*x)),(FLOAT)0x100000000);
+  return __fdividef(__uint2float_rz((UINT32)(*x)),(GFLOAT)0x100000000);
   // The typecast will truncate the x so that it is 0<=x<(2^32-1),
-  // __uint2FLOAT_rz ensures a round towards zero since 32-bit FLOATing point 
+  // __uint2float_rz ensures a round towards zero since 32-bit floating point 
   // cannot represent all integers that large. 
   // Dividing by 2^32 will hence yield [0,1)
 } 
@@ -42,7 +42,7 @@ __device__ FLOAT rand_MWC_co(UINT64* x,UINT32* a)
 //////////////////////////////////////////////////////////////////////////////
 //   Generates a random number between 0 and 1 (0,1]
 //////////////////////////////////////////////////////////////////////////////
-__device__ FLOAT rand_MWC_oc(UINT64* x,UINT32* a)
+__device__ GFLOAT rand_MWC_oc(UINT64* x,UINT32* a)
 {
   return 1.0f-rand_MWC_co(x,a);
 } 

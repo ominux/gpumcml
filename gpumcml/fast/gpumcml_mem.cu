@@ -40,8 +40,8 @@ int InitDCMem(SimulationStruct *sim, UINT32 A_rz_overflow)
 
   h_simparam.num_layers = sim->n_layers;  // not plus 2 here
   h_simparam.init_photon_w = sim->start_weight;
-  h_simparam.dz = (FLOAT)sim->det.dz;
-  h_simparam.dr = (FLOAT)sim->det.dr;
+  h_simparam.dz = (GFLOAT)sim->det.dz;
+  h_simparam.dr = (GFLOAT)sim->det.dr;
   h_simparam.na = sim->det.na;
   h_simparam.nz = sim->det.nz;
   h_simparam.nr = sim->det.nr;
@@ -54,18 +54,18 @@ int InitDCMem(SimulationStruct *sim, UINT32 A_rz_overflow)
 
   for (UINT32 i = 0; i < n_layers; ++i)
   {
-    h_layerspecs[i].z0 = (FLOAT)sim->layers[i].z_min;
-    h_layerspecs[i].z1 = (FLOAT)sim->layers[i].z_max;
-    FLOAT n1 = (FLOAT)sim->layers[i].n;
+    h_layerspecs[i].z0 = (GFLOAT)sim->layers[i].z_min;
+    h_layerspecs[i].z1 = (GFLOAT)sim->layers[i].z_max;
+    GFLOAT n1 = (GFLOAT)sim->layers[i].n;
     h_layerspecs[i].n = n1;
 
     // TODO: sim->layer should not do any pre-computation.
-    FLOAT rmuas = (FLOAT)sim->layers[i].mutr;
+    GFLOAT rmuas = (GFLOAT)sim->layers[i].mutr;
     h_layerspecs[i].muas = FP_ONE / rmuas;
     h_layerspecs[i].rmuas = rmuas;
-    h_layerspecs[i].mua_muas = (FLOAT)sim->layers[i].mua * rmuas;
+    h_layerspecs[i].mua_muas = (GFLOAT)sim->layers[i].mua * rmuas;
 
-    h_layerspecs[i].g = (FLOAT)sim->layers[i].g;
+    h_layerspecs[i].g = (GFLOAT)sim->layers[i].g;
 
     if (i == 0 || i == n_layers-1)
     {
@@ -74,10 +74,10 @@ int InitDCMem(SimulationStruct *sim, UINT32 A_rz_overflow)
     }
     else
     {
-      FLOAT n2 = (FLOAT)sim->layers[i-1].n;
+      GFLOAT n2 = (GFLOAT)sim->layers[i-1].n;
       h_layerspecs[i].cos_crit0 = (n1 > n2) ?
         sqrtf(FP_ONE - n2*n2/(n1*n1)) : MCML_FP_ZERO;
-      n2 = (FLOAT)sim->layers[i+1].n;
+      n2 = (GFLOAT)sim->layers[i+1].n;
       h_layerspecs[i].cos_crit1 = (n1 > n2) ?
         sqrtf(FP_ONE - n2*n2/(n1*n1)) : MCML_FP_ZERO;
     }
@@ -154,7 +154,7 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
   */
 
   // photon structure
-  size = n_threads * sizeof(FLOAT);
+  size = n_threads * sizeof(GFLOAT);
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_x, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_y, size) );
   CUDA_SAFE_CALL( cudaMalloc((void**)&tstates->photon_z, size) );
