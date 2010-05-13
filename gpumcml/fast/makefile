@@ -16,6 +16,7 @@
 
 # To disable register usage constraint, set it to 0.
 MAX_REG_COUNT_SM20 := 36
+MAX_REG_COUNT_SM13 := 0
 MAX_REG_COUNT_SM12 := 0
 
 # To compile 32-bit binaries on a 64-bit machine, set this to 1.
@@ -66,9 +67,10 @@ endif
 
 PROG_BASE := gpumcml
 PROG_SM20 := $(PROG_BASE).sm_20
+PROG_SM13 := $(PROG_BASE).sm_13
 PROG_SM12 := $(PROG_BASE).sm_12
 
-default: $(PROG_SM20) $(PROG_SM12)
+default: $(PROG_SM20) $(PROG_SM13) $(PROG_SM12)
 
 ######################################################################
 # Source files
@@ -85,8 +87,8 @@ CU_SRCS := $(PROG_BASE)_main.cu \
 # GPU code compilation rules for Compute Capability 2.0
 ######################################################################
 
-GENCODE_SM20 := -gencode=arch=compute_20,code=\"sm_20,compute_20\"
-NVCC_FLAGS_SM20 := $(NVCC_FLAGS) $(GENCODE_SM20) -DCUDA_ARCH=20
+GENCODE_SM20 := -gencode arch=compute_20,code=\"sm_20,compute_20\"
+NVCC_FLAGS_SM20 := $(NVCC_FLAGS) $(GENCODE_SM20) -D__CUDA_ARCH__=200
 ifneq "$(strip $(MAX_REG_COUNT_SM20))" "0"
 NVCC_FLAGS_SM20 += -maxrregcount $(MAX_REG_COUNT_SM20)
 endif
@@ -102,24 +104,44 @@ clean_sm_20:
 	$(NVCC) $(NVCC_FLAGS_SM20) -o $(PROG_SM20).cu_o -c $(PROG_BASE)_main.cu -clean
 
 ######################################################################
+# GPU code compilation rules for Compute Capability 1.3
+######################################################################
+
+GENCODE_SM13 := -gencode arch=compute_13,code=\"sm_13,compute_13\"
+NVCC_FLAGS_SM13 := $(NVCC_FLAGS) $(GENCODE_SM13) -D__CUDA_ARCH__=130
+ifneq "$(strip $(MAX_REG_COUNT_SM13))" "0"
+NVCC_FLAGS_SM13 += -maxrregcount $(MAX_REG_COUNT_SM13)
+endif
+NVCC_FLAGS_SM13 += #-keep # -deviceemu
+
+$(PROG_SM13): $(PROG_SM13).cu_o gpumcml_io.o
+	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
+
+$(PROG_SM13).cu_o: $(CU_SRCS)
+	$(NVCC) $(NVCC_FLAGS_SM13) -o $@ -c $<
+
+clean_sm_13:
+	$(NVCC) $(NVCC_FLAGS_SM13) -o $(PROG_SM13).cu_o -c $(PROG_BASE)_main.cu -clean
+
+######################################################################
 # GPU code compilation rules for Compute Capability 1.2
 ######################################################################
 
-GENCODE_SM12 := -gencode=arch=compute_12,code=\"sm_12,compute_12\"
-NVCC_FLAGS_SM12 := $(NVCC_FLAGS) $(GENCODE_SM12) -DCUDA_ARCH=12
+GENCODE_SM12 := -gencode arch=compute_12,code=\"sm_12,compute_12\"
+NVCC_FLAGS_SM12 := $(NVCC_FLAGS) $(GENCODE_SM12) -D__CUDA_ARCH__=120
 ifneq "$(strip $(MAX_REG_COUNT_SM12))" "0"
 NVCC_FLAGS_SM12 += -maxrregcount $(MAX_REG_COUNT_SM12)
 endif
 NVCC_FLAGS_SM12 += #-keep # -deviceemu
 
 $(PROG_SM12): $(PROG_SM12).cu_o gpumcml_io.o
-	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
+	-$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
 $(PROG_SM12).cu_o: $(CU_SRCS)
-	$(NVCC) $(NVCC_FLAGS_SM12) -o $@ -c $<
+	-$(NVCC) $(NVCC_FLAGS_SM12) -o $@ -c $<
 
 clean_sm_12:
-	$(NVCC) $(NVCC_FLAGS_SM12) -o $(PROG_SM20).cu_o -c $(PROG_BASE)_main.cu -clean
+	-$(NVCC) $(NVCC_FLAGS_SM12) -o $(PROG_SM12).cu_o -c $(PROG_BASE)_main.cu -clean
 
 # Disable implicit rules on .cu files.
 %.cu: ;
@@ -136,8 +158,8 @@ clean_sm_12:
 
 ######################################################################
 
-clean: clean_sm_20 clean_sm_12
-	rm -f $(PROG_SM20) $(PROG_SM12) *.o *.cu_o
+clean: clean_sm_20 clean_sm_13 clean_sm_12
+	rm -f $(PROG_SM20) $(PROG_SM13) $(PROG_SM12) *.o *.cu_o
 
 ######################################################################
 

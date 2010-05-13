@@ -37,8 +37,9 @@
 #define SQRT(x) sqrtf(x)
 #define RSQRT(x) rsqrtf(x)
 #define LOG(x) logf(x)
+#define SINCOS(x, sptr, cptr) __sincosf(x, sptr, cptr)
 #else
-// This is defined by the CUDA compiler.
+// __CUDA_ARCH__ is defined by the CUDA compiler.
 #if __CUDA_ARCH__ >= 200
 #define FAST_DIV(x,y) __ddiv_rn(x,y)
 #else
@@ -47,6 +48,7 @@
 #define SQRT(x) sqrt(x)
 #define RSQRT(x) rsqrt(x)
 #define LOG(x) log(x)
+#define SINCOS(x, sptr, cptr) sincos(x, sptr, cptr)
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
@@ -297,12 +299,7 @@ __device__ void Spin(GFLOAT g, PhotonStructGPU *photon,
   rand = rand_MWC_co(rnd_x, rnd_a);
 
   psi = FP_TWO * PI_const * rand;
-#ifdef SINGLE_PRECISION
-  __sincosf(psi, &sinp, &cosp);
-#else
-  sinp = sin(psi);
-  cosp = cos(psi);
-#endif
+  SINCOS(psi, &sinp, &cosp);
 
   GFLOAT stcp = sint * cosp;
   GFLOAT stsp = sint * sinp;

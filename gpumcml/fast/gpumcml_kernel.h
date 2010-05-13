@@ -82,15 +82,17 @@
  * NUM_THREADS_PER_BLOCK to decrease (due to hardware resource constraint).
  */
 
-// By default, we assume the lowest Compute Capability we support: 1.2.
-#ifndef CUDA_ARCH
-#define CUDA_ARCH 12
+// __CUDA_ARCH__ should be defined by the CUDA compiler.
+// Just in case, by default, we assume the lowest Compute Capability
+// we support: 1.2.
+#ifndef __CUDA_ARCH__
+#define __CUDA_ARCH__ 120
 #endif
 
 /////////////////////////////////////////////
 // Compute Capability 2.0
 /////////////////////////////////////////////
-#if CUDA_ARCH == 20
+#if __CUDA_ARCH__ == 200
 
 #define NUM_THREADS_PER_BLOCK 896
 // #define USE_TRUE_CACHE
@@ -103,7 +105,7 @@
 /////////////////////////////////////////////
 // Compute Capability 1.2 or 1.3
 /////////////////////////////////////////////
-#elif CUDA_ARCH == 12 || CUDA_ARCH == 13
+#elif (__CUDA_ARCH__ == 120) || (__CUDA_ARCH__ == 130)
 
 #define NUM_THREADS_PER_BLOCK 256
 #define MAX_IR 28
@@ -118,6 +120,14 @@
 
 #error "GPUMCML only supports compute capability 1.2 to 2.0!"
 
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+// GPUs with Compute Capability 1.2 does not support double precision.
+#if (__CUDA_ARCH__ == 120) && !defined(SINGLE_PRECISION)
+#error "GPUMCML in double-precision cannot be compiled for Compute Capability 1.2!"
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
