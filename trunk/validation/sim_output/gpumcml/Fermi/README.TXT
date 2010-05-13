@@ -1,3 +1,5 @@
+Fermi Performance Results
+-------------------------------
 
 - Default optimizations: 23.02s
   - sevenlayer_600nm_100M.mco
@@ -22,3 +24,8 @@
 
 - Use 40 regs per thread and 768 threads per block: 23.45s
   - sevenlayer_600nm_100M.40r768t.mco
+
+- Use double precision throughout the kernel: 224.62s
+  - sevenlayer_600nm_100M.dp.mco
+  - WEIGHT_SCALE and rng are still in single-precision.
+
