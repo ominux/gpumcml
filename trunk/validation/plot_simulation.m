@@ -15,57 +15,59 @@ end
 
 
 % Create r, z vectors
-z = (1:ref.step_num(1))*ref.step_size(1);
-r = (1:ref.step_num(2))*ref.step_size(2);
+z = (0:ref.step_num(1)-1)*ref.step_size(1);
+r = (0:ref.step_num(2)-1)*ref.step_size(2);
 
 na = ref.step_num(3);
-a = 1:na;
+da=pi/(2*na); 
+a = (0:na-1)*da;
 
 nlayers = ref.layers;
 
 
 figure
+subplot(2,2,1); 
 semilogy(r,ref.refl_r);hold on
 if CMP
     semilogy(r,cmp1.refl_r,'r')
     legend(FileName_ref, FileName_cmp1)
 end
-title('Reflectance(r)')
+%title('Reflectance(r)')
 xlabel('r [cm]')
-ylabel('Reflectance []')
+ylabel('Reflectance [1/cm^{2}]')
 
 
-figure
+subplot(2,2,2); 
 plot(a,ref.refl_a);hold on
 if CMP
     plot(a,cmp1.refl_a,'r')
     legend(FileName_ref, FileName_cmp1)
 end
-title('Reflectance(a)')
-xlabel('a []')
-ylabel('Reflectance []')
+%title('Reflectance(a)')
+xlabel('a [rad]')
+ylabel('Reflectance [1/sr]')
 
 
-figure
+subplot(2,2,3); 
 plot(r,ref.trans_r);hold on
 if CMP
     plot(r,cmp1.trans_r,'r')
     legend(FileName_ref, FileName_cmp1)
 end
-title('Transmittance(r)')
+%title('Transmittance(r)')
 xlabel('r [cm]')
-ylabel('Transmittance []')
+ylabel('Transmittance [1/cm^{2}]')
 
 
-figure
+subplot(2,2,4); 
 plot(a,ref.trans_a);hold on
 if CMP
     plot(a,cmp1.trans_a,'r')
     legend(FileName_ref, FileName_cmp1)
 end
-title('Transmittance(a)')
-xlabel('a [cm]')
-ylabel('Transmittance []')
+%title('Transmittance(a)')
+xlabel('a [rad]')
+ylabel('Transmittance [1/sr]')
 
 
 
