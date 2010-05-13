@@ -24,7 +24,7 @@
 #ifndef _GPUMCML_H_
 #define _GPUMCML_H_
 
-#define SINGLE_PRECISION
+// #define SINGLE_PRECISION
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -50,7 +50,7 @@ typedef float FLOAT;
 //
 // Using a power of 2 here can also make multiplication/division faster.
 //
-#define WEIGHT_SCALE ((FLOAT)(2<<24))
+#define WEIGHT_SCALE ((FLOAT)(1<<24))
 
 #define PI_const 3.1415926F
 #define RPI 0.318309886F
@@ -72,7 +72,7 @@ typedef double FLOAT;
 #define WEIGHT 1E-4     
 
 // scaling factor for photon weight, which is then converted to integer
-#define WEIGHT_SCALE ((FLOAT)(2<<24))
+#define WEIGHT_SCALE ((FLOAT)(1<<24))
 
 #define PI_const 3.1415926
 #define RPI 0.318309886
