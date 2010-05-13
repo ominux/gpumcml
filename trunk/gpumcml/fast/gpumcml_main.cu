@@ -413,11 +413,11 @@ int main(int argc, char* argv[])
         i, props.name, props.major, props.minor, props.multiProcessorCount);
 
     // Validate the GPU compute capability.
-    int cc = props.major * 10 + props.minor;
-    if (cc < CUDA_ARCH)
+    int cc = (props.major * 10 + props.minor) * 10;
+    if (cc < __CUDA_ARCH__)
     {
       fprintf(stderr, "\nGPU %u does not meet the Compute Capability "
-          "this program requires (%d)! Abort.\n\n", i, CUDA_ARCH);
+          "this program requires (%d)! Abort.\n\n", i, __CUDA_ARCH__);
       exit(1);
     }
 
