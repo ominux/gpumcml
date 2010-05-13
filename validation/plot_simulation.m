@@ -26,7 +26,7 @@ nlayers = ref.layers;
 
 
 figure
-subplot(2,2,1); 
+subplot(1,2,1); 
 semilogy(r,ref.refl_r);hold on
 if CMP
     semilogy(r,cmp1.refl_r,'r')
@@ -37,7 +37,7 @@ xlabel('r [cm]')
 ylabel('Reflectance [1/cm^{2}]')
 
 
-subplot(2,2,2); 
+subplot(1,2,2); 
 plot(a,ref.refl_a);hold on
 if CMP
     plot(a,cmp1.refl_a,'r')
@@ -48,7 +48,8 @@ xlabel('a [rad]')
 ylabel('Reflectance [1/sr]')
 
 
-subplot(2,2,3); 
+figure
+subplot(1,2,1); 
 plot(r,ref.trans_r);hold on
 if CMP
     plot(r,cmp1.trans_r,'r')
@@ -59,7 +60,7 @@ xlabel('r [cm]')
 ylabel('Transmittance [1/cm^{2}]')
 
 
-subplot(2,2,4); 
+subplot(1,2,2); 
 plot(a,ref.trans_a);hold on
 if CMP
     plot(a,cmp1.trans_a,'r')
