@@ -60,12 +60,6 @@
 #include <cutil.h>
 #endif
 
-#ifdef _WIN32 
-#include "cutil-win32/multithreading.h"
-#else
-#include "multithreading.h"
-#endif
-
 #include "gpumcml.h"
 #include "gpumcml_kernel.h"
 
