@@ -128,7 +128,7 @@ void WriteInParm(FILE *file, SimulationStruct * sim)
 //////////////////////////////////////////////////////////////////////////////
 int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim,
     float simulation_time)
-  // simulation time in seconds
+  // simulation time in milliseconds
 {
   //FILE* pFile_inp;
   FILE* pFile_outp;
@@ -177,7 +177,7 @@ int Write_Simulation_Results(SimState* HostMem, SimulationStruct* sim,
   fprintf(pFile_outp,"####\n\n");
 
   // Write simulation time
-  fprintf(pFile_outp,"# User time: %.2f sec\n\n", simulation_time);
+  fprintf(pFile_outp,"# User time: %.2f sec\n\n", simulation_time/1000.0); //Convert simulation time from milliseconds to seconds.
 
   WriteInParm (pFile_outp, sim); 
   //fprintf(pFile_outp,"InParam\t\t# Input parameters:\n");
