@@ -188,14 +188,22 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon, SimState *d_state_p
     FLOAT ni_nt = __fdividef(ni, nt);   // reused later
 
     FLOAT sa1 = sqrtf(FP_ONE-ca1*ca1);
+    if (ca1 > COSZERO) sa1 = MCML_FP_ZERO;
     FLOAT sa2 = fminf(ni_nt * sa1, FP_ONE);
-    if (ca1 > COSZERO) sa2 = sa1;
     FLOAT uz1 = sqrtf(FP_ONE-sa2*sa2);    // uz1 = ca2
 
     FLOAT ca1ca2 = ca1 * uz1;
     FLOAT sa1sa2 = sa1 * sa2;
     FLOAT sa1ca2 = sa1 * uz1;
     FLOAT ca1sa2 = ca1 * sa2;
+
+    // normal incidence: [(1-ni_nt)/(1+ni_nt)]^2
+    // We ensure that ca1ca2 = 1, sa1sa2 = 0, sa1ca2 = 1, ca1sa2 = ni_nt
+    if (ca1 > COSZERO)
+    {
+      sa1ca2 = FP_ONE;
+      ca1sa2 = ni_nt;
+    }
 
     FLOAT cam = ca1ca2 + sa1sa2; /* c- = cc + ss. */
     FLOAT sap = sa1ca2 + ca1sa2; /* s+ = sc + cs. */
@@ -205,8 +213,6 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon, SimState *d_state_p
     rFresnel *= rFresnel;
     rFresnel *= (ca1ca2*ca1ca2 + sa1sa2*sa1sa2);
 
-    // Hope "uz1" is very close to "ca1".
-    if (ca1 > COSZERO) rFresnel = MCML_FP_ZERO;
     // In this case, we do not care if "uz1" is exactly 0.
     if (ca1 < COSNINETYDEG || sa2 == FP_ONE) rFresnel = FP_ONE;
 
