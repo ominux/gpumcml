@@ -1,13 +1,11 @@
 #
 # Makefile for GPUMCML on Linux
 #
-# It generates two executables: gpumcml.sm_12 and gpumcml.sm_20.
+# It generates four executables: gpumcml.sm_[11 | 12 | 13 | 20].
 #
-# gpumcml.sm_12 is optimized for GPUs with compute capability 1.2 and 1.3, but
-# can run on GPUs with compute capability 2.0 too.
-#
-# gpumcml.sm_20 is optimized for GPUs with compute capability 2.0, and CANNOT
-# run on GPUs with compute capability 1.2 or 1.3.
+# They are optimized for GPUs with compute capability 1.1, 1.2, 1.3 and 2.0
+# respectively. Note that a program can run on a GPU with compute capability
+# that is higher than the one it is optimized for.
 #
 
 ######################################################################
@@ -18,6 +16,7 @@
 MAX_REG_COUNT_SM20 := 36
 MAX_REG_COUNT_SM13 := 0
 MAX_REG_COUNT_SM12 := 0
+MAX_REG_COUNT_SM11 := 0
 
 # To compile 32-bit binaries on a 64-bit machine, set this to 1.
 COMPILE_32 := 1
@@ -69,8 +68,9 @@ PROG_BASE := gpumcml
 PROG_SM20 := $(PROG_BASE).sm_20
 PROG_SM13 := $(PROG_BASE).sm_13
 PROG_SM12 := $(PROG_BASE).sm_12
+PROG_SM11 := $(PROG_BASE).sm_11
 
-default: $(PROG_SM20) $(PROG_SM13) $(PROG_SM12)
+default: $(PROG_SM20) $(PROG_SM13) $(PROG_SM12) $(PROG_SM11)
 
 ######################################################################
 # Source files
@@ -95,13 +95,13 @@ endif
 NVCC_FLAGS_SM20 += #-keep # -deviceemu
 
 $(PROG_SM20): $(PROG_SM20).cu_o gpumcml_io.o
-	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
+	-$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
 $(PROG_SM20).cu_o: $(CU_SRCS)
-	$(NVCC) $(NVCC_FLAGS_SM20) -o $@ -c $<
+	-$(NVCC) $(NVCC_FLAGS_SM20) -o $@ -c $<
 
 clean_sm_20:
-	$(NVCC) $(NVCC_FLAGS_SM20) -o $(PROG_SM20).cu_o -c $(PROG_BASE)_main.cu -clean
+	-$(NVCC) $(NVCC_FLAGS_SM20) -o $(PROG_SM20).cu_o -c $(PROG_BASE)_main.cu -clean
 
 ######################################################################
 # GPU code compilation rules for Compute Capability 1.3
@@ -115,13 +115,13 @@ endif
 NVCC_FLAGS_SM13 += #-keep # -deviceemu
 
 $(PROG_SM13): $(PROG_SM13).cu_o gpumcml_io.o
-	$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
+	-$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
 
 $(PROG_SM13).cu_o: $(CU_SRCS)
-	$(NVCC) $(NVCC_FLAGS_SM13) -o $@ -c $<
+	-$(NVCC) $(NVCC_FLAGS_SM13) -o $@ -c $<
 
 clean_sm_13:
-	$(NVCC) $(NVCC_FLAGS_SM13) -o $(PROG_SM13).cu_o -c $(PROG_BASE)_main.cu -clean
+	-$(NVCC) $(NVCC_FLAGS_SM13) -o $(PROG_SM13).cu_o -c $(PROG_BASE)_main.cu -clean
 
 ######################################################################
 # GPU code compilation rules for Compute Capability 1.2
@@ -143,8 +143,25 @@ $(PROG_SM12).cu_o: $(CU_SRCS)
 clean_sm_12:
 	-$(NVCC) $(NVCC_FLAGS_SM12) -o $(PROG_SM12).cu_o -c $(PROG_BASE)_main.cu -clean
 
-# Disable implicit rules on .cu files.
-%.cu: ;
+######################################################################
+# GPU code compilation rules for Compute Capability 1.1
+######################################################################
+
+GENCODE_SM11 := -gencode arch=compute_11,code=\"sm_11,compute_11\"
+NVCC_FLAGS_SM11 := $(NVCC_FLAGS) $(GENCODE_SM11) -D__CUDA_ARCH__=110
+ifneq "$(strip $(MAX_REG_COUNT_SM11))" "0"
+NVCC_FLAGS_SM11 += -maxrregcount $(MAX_REG_COUNT_SM11)
+endif
+NVCC_FLAGS_SM11 += #-keep # -deviceemu
+
+$(PROG_SM11): $(PROG_SM11).cu_o gpumcml_io.o
+	-$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
+
+$(PROG_SM11).cu_o: $(CU_SRCS)
+	-$(NVCC) $(NVCC_FLAGS_SM11) -o $@ -c $<
+
+clean_sm_11:
+	-$(NVCC) $(NVCC_FLAGS_SM11) -o $(PROG_SM11).cu_o -c $(PROG_BASE)_main.cu -clean
 
 ######################################################################
 # C code compilation rules
@@ -158,10 +175,13 @@ clean_sm_12:
 
 ######################################################################
 
-clean: clean_sm_20 clean_sm_13 clean_sm_12
-	rm -f $(PROG_SM20) $(PROG_SM13) $(PROG_SM12) *.o *.cu_o
+clean: clean_sm_20 clean_sm_13 clean_sm_12 clean_sm_11
+	rm -f $(PROG_SM11) $(PROG_SM13) $(PROG_SM12) $(PROG_SM11) *.o *.cu_o
 
 ######################################################################
 
-.PHONY: default clean clean_sm_20 clean_sm_12
+# Disable implicit rules on .cu files.
+%.cu: ;
+
+.PHONY: default clean clean_sm_20 clean_sm_13 clean_sm_12 clean_sm_11
 

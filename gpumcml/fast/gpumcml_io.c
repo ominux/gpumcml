@@ -100,7 +100,7 @@ int interpret_arg(int argc, char* argv[], char **fpath_p,
  ****/
 void WriteInParm(FILE *file, SimulationStruct * sim)
 {
-  int i;
+  unsigned int i;
   
   fprintf(file, 
 	"InParm \t\t\t# Input parameters. cm is used.\n");

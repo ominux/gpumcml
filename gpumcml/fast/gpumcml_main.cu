@@ -137,7 +137,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
     exit(1); 
   }
 
-#ifdef USE_TRUE_CACHE
+#if !defined(CACHE_A_RZ_IN_SMEM) && __CUDA_ARCH__ >= 200
   // Configure the L1 cache for Fermi.
   if (hstate->sim->ignoreAdetection == 1)
   {
@@ -218,7 +218,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   // Compute GPU-specific constant parameters.
   UINT32 A_rz_overflow = 0;
   // We only need it if we care about A_rz.
-#if !defined(USE_TRUE_CACHE) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
+#if defined(CACHE_A_RZ_IN_SMEM) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
   if (! simulation->ignoreAdetection)
   {
     A_rz_overflow = compute_Arz_overflow_count(simulation->start_weight,
