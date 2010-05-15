@@ -44,7 +44,7 @@ perform/emulate 64-bit atomicAdd to global memory
 Check the NVIDIA programming guide to see what compute 
 capability your graphics card supports
 */
-// #define EMULATED_ATOMIC
+#define EMULATED_ATOMIC
 
 /* Configure the L1 cache to have 16KB of shared memory and
 48KB of hardware-managed cache.
