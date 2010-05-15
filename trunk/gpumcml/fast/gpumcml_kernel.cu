@@ -52,6 +52,9 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////
 // This host routine computes the maximum element value of A_rz in shared
 // memory, that indicates an imminent overflow.
 //
@@ -84,6 +87,9 @@ UINT32 compute_Arz_overflow_count(GFLOAT init_photon_w,
 }
 
 //////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////
 //   Initialize photon position (x, y, z), direction (ux, uy, uz), weight (w), 
 //   and current layer (layer) 
 //   Note: Infinitely narrow beam (pointing in the +z direction = downwards)
@@ -95,6 +101,138 @@ __device__ void LaunchPhoton(PhotonStructGPU *photon)
   photon->uz = FP_ONE;
   photon->w = d_simparam.init_photon_w;
   photon->layer = 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//   Initialize thread states (tstates), created to allow a large 
+//   simulation to be broken up into batches 
+//   (avoiding display driver time-out errors)
+//////////////////////////////////////////////////////////////////////////////
+__global__ void InitThreadState(GPUThreadStates tstates)
+{
+  PhotonStructGPU photon_temp; 
+
+  // Initialize the photon and copy into photon_<parameter x>
+  LaunchPhoton(&photon_temp);
+
+  // This is the unique ID for each thread (or thread ID = tid)
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  tstates.photon_x[tid] = photon_temp.x;
+  tstates.photon_y[tid] = photon_temp.y;
+  tstates.photon_z[tid] = photon_temp.z;
+  tstates.photon_ux[tid] = photon_temp.ux;
+  tstates.photon_uy[tid] = photon_temp.uy;
+  tstates.photon_uz[tid] = photon_temp.uz;
+  tstates.photon_w[tid] = photon_temp.w;
+  tstates.photon_layer[tid] = photon_temp.layer;
+
+  tstates.is_active[tid] = 1;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//   Save thread states (tstates), by copying the current photon 
+//   data from registers into global memory
+//////////////////////////////////////////////////////////////////////////////
+__device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
+                                PhotonStructGPU *photon,
+                                UINT64 rnd_x, 
+                                UINT32 is_active)
+{
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  d_state->x[tid] = rnd_x;
+
+  tstates->photon_x[tid] = photon->x;
+  tstates->photon_y[tid] = photon->y;
+  tstates->photon_z[tid] = photon->z;
+  tstates->photon_ux[tid] = photon->ux;
+  tstates->photon_uy[tid] = photon->uy;
+  tstates->photon_uz[tid] = photon->uz;
+  tstates->photon_w[tid] = photon->w;
+  tstates->photon_layer[tid] = photon->layer;
+
+  tstates->is_active[tid] = is_active;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//   Restore thread states (tstates), by copying the latest photon 
+//   data from global memory back into the registers
+//////////////////////////////////////////////////////////////////////////////
+__device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
+                                   PhotonStructGPU *photon,
+                                   UINT64 *rnd_x, UINT32 *rnd_a,
+                                   UINT32 *is_active)
+{
+  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+  *rnd_x = d_state->x[tid];
+  *rnd_a = d_state->a[tid]; 
+
+  photon->x = tstates->photon_x[tid];
+  photon->y = tstates->photon_y[tid];
+  photon->z = tstates->photon_z[tid];
+  photon->ux = tstates->photon_ux[tid];
+  photon->uy = tstates->photon_uy[tid];
+  photon->uz = tstates->photon_uz[tid];
+  photon->w = tstates->photon_w[tid];
+  photon->layer = tstates->photon_layer[tid];
+
+  *is_active = tstates->is_active[tid];
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+#ifdef CACHE_A_RZ_IN_SMEM
+
+//////////////////////////////////////////////////////////////////////////////
+// Flush the element at offset <s_addr> of A_rz in shared memory (s_A_rz)
+// to the global memory (g_A_rz). <s_A_rz> is of dimension MAX_IR x MAX_IZ.
+//////////////////////////////////////////////////////////////////////////////
+__device__ void Flush_Arz(UINT64 *g_A_rz, ARZ_SMEM_TY *s_A_rz, UINT32 saddr)
+{
+  UINT32 ir = saddr / MAX_IZ;
+  UINT32 iz = saddr - ir * MAX_IZ;
+  UINT32 g_addr = ir * d_simparam.nz + iz;
+
+  atomicAdd(&g_A_rz[g_addr], (UINT64)s_A_rz[saddr]);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+//   AtomicAdd to Shared Mem for Unsigned Long Long (ULL) data type
+//   Note: Only Fermi architecture supports 64-bit atomicAdd to shared memory
+//////////////////////////////////////////////////////////////////////////////
+__device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
+{
+#ifdef USE_64B_ATOMIC_SMEM
+  // TODO: does this really work?
+  atomicAdd(address, (UINT64)add);
+#else
+  if (atomicAdd((UINT32*)address,add) +add < add)
+  {
+    atomicAdd(((UINT32*)address)+1, 1U);
+  }
+#endif
+}
+
+#endif  // CACHE_A_RZ_IN_SMEM
+
+//////////////////////////////////////////////////////////////////////////////
+//   AtomicAdd to Global Mem for Unsigned Long Long (ULL) data type
+//   Note: 64-bit atomicAdd to global memory is supported since
+//   Compute Capability 1.2
+//////////////////////////////////////////////////////////////////////////////
+__device__ void AtomicAddULL_Global(UINT64* address, UINT32 add)
+{
+#ifdef USE_64B_ATOMIC_GMEM
+  atomicAdd(address, (UINT64)add);
+#else
+  if (atomicAdd((UINT32*)address,add) +add < add)
+  {
+    atomicAdd(((UINT32*)address)+1, 1U);
+  }
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -244,7 +382,7 @@ __device__ void FastReflectTransmit(PhotonStructGPU *photon,
         UINT32 ir = FAST_DIV(SQRT(photon->x*photon->x+photon->y*photon->y), d_simparam.dr);
         if (ir >= d_simparam.nr) ir = d_simparam.nr - 1;
 
-        atomicAdd(&ra_arr[ia * d_simparam.nr + ir],
+        AtomicAddULL_Global(&ra_arr[ia * d_simparam.nr + ir],
           (UINT32)(photon->w * WEIGHT_SCALE));
  
         // Kill the photon.
@@ -336,115 +474,6 @@ __device__ void Spin(GFLOAT g, PhotonStructGPU *photon,
 #endif
 }
 
-
-//////////////////////////////////////////////////////////////////////////////
-//   Initialize thread states (tstates), created to allow a large 
-//   simulation to be broken up into batches 
-//   (avoiding display driver time-out errors)
-//////////////////////////////////////////////////////////////////////////////
-__global__ void InitThreadState(GPUThreadStates tstates)
-{
-  PhotonStructGPU photon_temp; 
-
-  // Initialize the photon and copy into photon_<parameter x>
-  LaunchPhoton(&photon_temp);
-
-  // This is the unique ID for each thread (or thread ID = tid)
-  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
-
-  tstates.photon_x[tid] = photon_temp.x;
-  tstates.photon_y[tid] = photon_temp.y;
-  tstates.photon_z[tid] = photon_temp.z;
-  tstates.photon_ux[tid] = photon_temp.ux;
-  tstates.photon_uy[tid] = photon_temp.uy;
-  tstates.photon_uz[tid] = photon_temp.uz;
-  tstates.photon_w[tid] = photon_temp.w;
-  tstates.photon_layer[tid] = photon_temp.layer;
-
-  tstates.is_active[tid] = 1;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//   Save thread states (tstates), by copying the current photon 
-//   data from registers into global memory
-//////////////////////////////////////////////////////////////////////////////
-__device__ void SaveThreadState(SimState *d_state, GPUThreadStates *tstates,
-                                PhotonStructGPU *photon,
-                                UINT64 rnd_x, 
-                                UINT32 is_active)
-{
-  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
-
-  d_state->x[tid] = rnd_x;
-
-  tstates->photon_x[tid] = photon->x;
-  tstates->photon_y[tid] = photon->y;
-  tstates->photon_z[tid] = photon->z;
-  tstates->photon_ux[tid] = photon->ux;
-  tstates->photon_uy[tid] = photon->uy;
-  tstates->photon_uz[tid] = photon->uz;
-  tstates->photon_w[tid] = photon->w;
-  tstates->photon_layer[tid] = photon->layer;
-
-  tstates->is_active[tid] = is_active;
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//   Restore thread states (tstates), by copying the latest photon 
-//   data from global memory back into the registers
-//////////////////////////////////////////////////////////////////////////////
-__device__ void RestoreThreadState(SimState *d_state, GPUThreadStates *tstates,
-                                   PhotonStructGPU *photon,
-                                   UINT64 *rnd_x, UINT32 *rnd_a,
-                                   UINT32 *is_active)
-{
-  UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
-
-  *rnd_x = d_state->x[tid];
-  *rnd_a = d_state->a[tid]; 
-
-  photon->x = tstates->photon_x[tid];
-  photon->y = tstates->photon_y[tid];
-  photon->z = tstates->photon_z[tid];
-  photon->ux = tstates->photon_ux[tid];
-  photon->uy = tstates->photon_uy[tid];
-  photon->uz = tstates->photon_uz[tid];
-  photon->w = tstates->photon_w[tid];
-  photon->layer = tstates->photon_layer[tid];
-
-  *is_active = tstates->is_active[tid];
-}
-
-//////////////////////////////////////////////////////////////////////////////
-// Flush the element at offset <s_addr> of A_rz in shared memory (s_A_rz)
-// to the global memory (g_A_rz). <s_A_rz> is of dimension MAX_IR x MAX_IZ.
-//////////////////////////////////////////////////////////////////////////////
-__device__ void Flush_Arz(UINT64 *g_A_rz, ARZ_SMEM_TY *s_A_rz, UINT32 saddr)
-{
-  UINT32 ir = saddr / MAX_IZ;
-  UINT32 iz = saddr - ir * MAX_IZ;
-  UINT32 g_addr = ir * d_simparam.nz + iz;
-
-  atomicAdd(&g_A_rz[g_addr], (UINT64)s_A_rz[saddr]);
-}
-
-//////////////////////////////////////////////////////////////////////////////
-//   AtomicAdd to Shared Mem for Unsigned Long Long (ULL) data type
-//   Note: Only Fermi architecture supports 64-bit atomicAdd to 
-//   both shared memory and global memory 
-//////////////////////////////////////////////////////////////////////////////
-__device__ void AtomicAddULL_Shared(UINT64* address, UINT32 add)
-{
-#ifdef USE_64B_ATOMIC_SMEM
-  atomicAdd(address, (UINT64)add);
-#else
-  if (atomicAdd((UINT32*)address,add) +add < add)
-  {
-    atomicAdd(((UINT32*)address)+1, 1U);
-  }
-#endif
-}
-
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
@@ -478,7 +507,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
   //////////////////////////////////////////////////////////////////////////
 
-#ifndef USE_TRUE_CACHE
+#ifdef CACHE_A_RZ_IN_SMEM
   // Cache the frequently acessed region of A_rz in the shared memory.
   __shared__ ARZ_SMEM_TY A_rz_shared[MAX_IR*MAX_IZ];
 
@@ -565,7 +594,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
             if (addr != last_addr)
             {
-#ifndef USE_TRUE_CACHE
+#ifdef CACHE_A_RZ_IN_SMEM
               // Commit the weight drop to memory.
               if (last_ir < MAX_IR && last_iz < MAX_IZ)
               {
@@ -588,7 +617,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 #endif
               {
                 // Write it to the global memory directly.
-                atomicAdd(&g_A_rz[last_addr], (UINT64)last_w);
+                AtomicAddULL_Global(&g_A_rz[last_addr], last_w);
               }
 
               last_ir = ir; last_iz = iz;
@@ -630,7 +659,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
 
     //////////////////////////////////////////////////////////////////////////
 
-#if !defined(USE_TRUE_CACHE) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
+#if defined(CACHE_A_RZ_IN_SMEM) && defined(USE_32B_ELEM_FOR_ARZ_SMEM)
     if (ignoreAdetection == 0)
     {
       // Enter a phase of handling overflow in A_rz_shared.
@@ -665,13 +694,13 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
     {
       // Commit to the global memory directly.
       // TODO: could we commit it to the shared memory, or does it matter?
-      atomicAdd(&g_A_rz[last_addr], last_w);
+      AtomicAddULL_Global(&g_A_rz[last_addr], last_w);
     }
   }
 
   //////////////////////////////////////////////////////////////////////////
 
-#ifndef USE_TRUE_CACHE
+#ifdef CACHE_A_RZ_IN_SMEM
   if (ignoreAdetection == 0)
   {
     // Flush A_rz_shared to the global memory.

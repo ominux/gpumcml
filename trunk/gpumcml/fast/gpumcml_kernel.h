@@ -35,11 +35,13 @@
  * - NUM_THREADS_PER_BLOCK:
  *      number of threads per thread block
  *
- * - USE_TRUE_CACHE:
- *      Use the true L1 cache instead of shared memory to cache
- *      updates to the absorption array A_rz. Configure the L1
- *      to have 48KB of true cache and 16KB of shared memory (unused).
- *      ** This feature is only available in Compute Capability 2.0.
+ * - CACHE_A_RZ_IN_SMEM:
+ *      Use the shared memory to cache a portion of the absorption array A_rz
+ *      that is frequently accessed.
+ *      On GPUs with Compute Capability 2.0, the L1 cache is configured to
+ *      have 48KB of shared memory and 16KB of true cache if this flag is set.
+ *      Otherwise, the L1 is configured to have 16KB of shared memory and 48KB
+ *      of true cache.
  *
  * - MAX_IR, MAX_IZ:
  *      If shared memory is used to cache A_rz (i.e., USE_TRUE_CACHE
@@ -67,6 +69,12 @@
  *      emulating it using two 32-bit atomic instructions.
  *      ** This feature is only available in Compute Capability 2.0.
  *
+ * - USE_64B_ATOMIC_GMEM:
+ *      Atomic update of the A_rz array in the global memory is done directly
+ *      using a 64-bit atomic instruction, as opposed to being emulated using
+ *      two 32-bit atomic instructions.
+ *      ** This feature is only available in Compute Capability 1.2 and above.
+ *
  * There are two potential parameters to tune:
  * - number of thread blocks
  * - the number of registers usaged by each thread
@@ -82,11 +90,9 @@
  * NUM_THREADS_PER_BLOCK to decrease (due to hardware resource constraint).
  */
 
-// __CUDA_ARCH__ should be defined by the CUDA compiler.
-// Just in case, by default, we assume the lowest Compute Capability
-// we support: 1.2.
+// Make sure __CUDA_ARCH__ is always defined by the user.
 #ifndef __CUDA_ARCH__
-#define __CUDA_ARCH__ 120
+#error "__CUDA_ARCH__ undefined!"
 #endif
 
 /////////////////////////////////////////////
@@ -95,12 +101,14 @@
 #if __CUDA_ARCH__ == 200
 
 #define NUM_THREADS_PER_BLOCK 896
-// #define USE_TRUE_CACHE
+// Disable this option to test the effect of true L1 cache (48KB).
+#define CACHE_A_RZ_IN_SMEM
 #define MAX_IR 48
 #define MAX_IZ 128
 // #define USE_32B_ELEM_FOR_ARZ_SMEM
 #define N_A_RZ_COPIES 4
 // #define USE_64B_ATOMIC_SMEM
+#define USE_64B_ATOMIC_GMEM
 
 /////////////////////////////////////////////
 // Compute Capability 1.2 or 1.3
@@ -108,9 +116,21 @@
 #elif (__CUDA_ARCH__ == 120) || (__CUDA_ARCH__ == 130)
 
 #define NUM_THREADS_PER_BLOCK 256
+#define CACHE_A_RZ_IN_SMEM
 #define MAX_IR 28
 #define MAX_IZ 128
 #define USE_32B_ELEM_FOR_ARZ_SMEM
+#define N_A_RZ_COPIES 1
+#define USE_64B_ATOMIC_GMEM
+
+/////////////////////////////////////////////
+// Compute Capability 1.1
+/////////////////////////////////////////////
+#elif (__CUDA_ARCH__ == 110)
+
+// We cannot cache A_rz in shared memory because atomic operations to shared
+// memory are not supported.
+#define NUM_THREADS_PER_BLOCK 192
 #define N_A_RZ_COPIES 1
 
 /////////////////////////////////////////////
@@ -118,7 +138,7 @@
 /////////////////////////////////////////////
 #else
 
-#error "GPUMCML only supports compute capability 1.2 to 2.0!"
+#error "GPUMCML only supports compute capability 1.1 to 2.0!"
 
 #endif
 
