@@ -91,6 +91,10 @@
  */
 
 // Make sure __CUDA_ARCH__ is always defined by the user.
+#ifdef _WIN32 
+  #define __CUDA_ARCH__ 120
+#endif 
+
 #ifndef __CUDA_ARCH__
 #error "__CUDA_ARCH__ undefined!"
 #endif
