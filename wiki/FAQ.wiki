@@ -1,0 +1,13 @@
+#summary Troubleshooting FAQ
+
+= No CUDA Compatible Device Found=
+
+Install the latest drivers from NVIDIA.  Don't use the default Windows Driver that is automatically installed at start-up immediately after installing the new card.
+
+
+= Details =
+
+Add your content here.  Format your content with:
+  * Text in *bold* or _italic_
+  * Headings, paragraphs, and lists
+  * Automatic links to other wiki pages
