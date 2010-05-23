@@ -118,14 +118,8 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   dim3 dimBlock(NUM_THREADS_PER_BLOCK);
   dim3 dimGrid(hstate->n_tblks);
 
-  int k_smem_sz = 0;
-#ifdef USE_32B_ELEM_FOR_ARZ_SMEM
-  // This piece of shared memory is for overflow handling.
-  k_smem_sz = NUM_THREADS_PER_BLOCK * sizeof(UINT32);
-#endif
-
   // Initialize the remaining thread states.
-  InitThreadState<<<dimGrid,dimBlock>>>(tstates);
+  InitThreadState<<<dimGrid,dimBlock>>>(tstates, *HostMem->n_photons_left);
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
   cudastat=cudaGetLastError(); // Check if there was an error
   if (cudastat)
@@ -147,6 +141,12 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   {
     cudaFuncSetCacheConfig(MCMLKernel<0>, cudaFuncCachePreferL1);
   }
+#endif
+
+  int k_smem_sz = 0;
+#ifdef USE_32B_ELEM_FOR_ARZ_SMEM
+  // This piece of shared memory is for overflow handling.
+  k_smem_sz = NUM_THREADS_PER_BLOCK * sizeof(UINT32);
 #endif
 
   for (int i = 1; *HostMem->n_photons_left > 0; ++i)
@@ -231,20 +231,11 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
 
   // Start simulation kernel exec timer
   unsigned int execTimer = 0;
-  CUT_SAFE_CALL( cutCreateTimer( &execTimer));
-  CUT_SAFE_CALL( cutStartTimer(execTimer));
-
-  //cudaEvent_t start, stop;
-  //float elapsedTime;
-
-  //cudaEventCreate(&start);
-  //cudaEventCreate(&stop);
-
-  //// Start the timer.
-  //cudaEventRecord(start,0);
+  CUT_SAFE_CALL( cutCreateTimer(&execTimer) );
+  CUT_SAFE_CALL( cutStartTimer(execTimer) );
 
   // Distribute all photons among GPUs.
-  unsigned int n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
+  UINT32 n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
 
   // For each GPU, init the host-side structure.
   for (UINT32 i = 0; i < num_GPUs; ++i)
@@ -260,7 +251,7 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
     // distribution is uneven.
     *(hss->n_photons_left) = (i == num_GPUs-1) ?
       simulation->number_of_photons - (num_GPUs-1) * n_photons_per_GPU :
-    n_photons_per_GPU;
+      n_photons_per_GPU;
   }
 
   // Launch a dedicated host thread for each GPU.
@@ -311,24 +302,15 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
       }
     }
 
-    //// End the timer.
-    //cudaEventRecord(stop,0);
-    //cudaEventSynchronize(stop);
+    CUT_SAFE_CALL( cutStopTimer(execTimer) );
 
-    //// Compute the execution time.
-    //cudaEventElapsedTime(&elapsedTime, start, stop);
-    //// Convert to seconds.
-    //elapsedTime /= 1000.0;
-    //printf("\n*** Simulation time: %.3f sec\n\n", elapsedTime);
-    CUT_SAFE_CALL( cutStopTimer(execTimer));
-    printf( "\n\n>>>>>>Simulation time: %f (ms)\n", cutGetTimerValue(execTimer));
+    float elapsedTime = cutGetTimerValue(execTimer);
+    printf("\n\n>>>>>>Simulation time: %.3f ms\n", elapsedTime);
 
-    Write_Simulation_Results(hss0, simulation, cutGetTimerValue(execTimer));
+    Write_Simulation_Results(hss0, simulation, elapsedTime);
   }
 
-  //cudaEventDestroy(start);
-  //cudaEventDestroy(stop);
-  CUT_SAFE_CALL( cutDeleteTimer( execTimer));
+  CUT_SAFE_CALL( cutDeleteTimer(execTimer) );
 
   // Free SimState structs.
   for (UINT32 i = 0; i < num_GPUs; ++i)
