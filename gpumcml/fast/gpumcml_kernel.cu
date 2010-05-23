@@ -108,26 +108,32 @@ __device__ void LaunchPhoton(PhotonStructGPU *photon)
 //   simulation to be broken up into batches 
 //   (avoiding display driver time-out errors)
 //////////////////////////////////////////////////////////////////////////////
-__global__ void InitThreadState(GPUThreadStates tstates)
+__global__ void InitThreadState(GPUThreadStates tstates, UINT32 n_photons)
 {
   PhotonStructGPU photon_temp; 
 
-  // Initialize the photon and copy into photon_<parameter x>
-  LaunchPhoton(&photon_temp);
-
-  // This is the unique ID for each thread (or thread ID = tid)
+  // thread ID that is unique in the grid
   UINT32 tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-  tstates.photon_x[tid] = photon_temp.x;
-  tstates.photon_y[tid] = photon_temp.y;
-  tstates.photon_z[tid] = photon_temp.z;
-  tstates.photon_ux[tid] = photon_temp.ux;
-  tstates.photon_uy[tid] = photon_temp.uy;
-  tstates.photon_uz[tid] = photon_temp.uz;
-  tstates.photon_w[tid] = photon_temp.w;
-  tstates.photon_layer[tid] = photon_temp.layer;
+  // If the total number of threads exceeds the number of photons, some
+  // threads will not do any work.
+  int is_active = (tid < n_photons) ? 1 : 0;
+  tstates.is_active[tid] = is_active;
 
-  tstates.is_active[tid] = 1;
+  if (is_active)
+  {
+    // Initialize the photon and copy into photon_<parameter x>
+    LaunchPhoton(&photon_temp);
+
+    tstates.photon_x[tid] = photon_temp.x;
+    tstates.photon_y[tid] = photon_temp.y;
+    tstates.photon_z[tid] = photon_temp.z;
+    tstates.photon_ux[tid] = photon_temp.ux;
+    tstates.photon_uy[tid] = photon_temp.uy;
+    tstates.photon_uz[tid] = photon_temp.uz;
+    tstates.photon_w[tid] = photon_temp.w;
+    tstates.photon_layer[tid] = photon_temp.layer;
+  }
 }
 
 //////////////////////////////////////////////////////////////////////////////
