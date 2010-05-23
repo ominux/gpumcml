@@ -47,7 +47,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="&quot;$(CUDA_INC_PATH)&quot;;./;../../common/inc"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;__CUDA_ARCH__=120"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="1"
@@ -115,6 +115,7 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
+				CommandLine="-arch sm_12"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -128,7 +129,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				AdditionalIncludeDirectories="$(CUDA_INC_PATH);./;../../common/inc"
-				PreprocessorDefinitions="WIN32;_CONSOLE"
+				PreprocessorDefinitions="WIN32;_CONSOLE;__CUDA_ARCH__=120"
 				RuntimeLibrary="0"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
