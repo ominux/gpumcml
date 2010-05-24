@@ -97,9 +97,9 @@ if CMP==0 % display 1 plot
     set(gca,'fontsize',sz)
     xlabel('r [cm]')
     ylabel('z [cm]')
-    ylim([0 0.6]); 
-    xlim([-2 2]); 
-    set(gca,'XTickLabel',{'2','1','0','1','2'});
+%    ylim([0 0.75]); 
+%    xlim([-2 2]); 
+%    set(gca,'XTickLabel',{'2','1','0','1','2'});
     title('log_1_0( A[r][z] ) - Absorption Probability Density [1/cm^3] ')
     colorbar
     colormap jet;
@@ -116,12 +116,12 @@ else
     set(gca,'fontsize',sz)
     xlabel('r [cm]')
     ylabel('z [cm]')
-    ylim([0 0.75]); 
-    xlim([-2 2]); 
+ %   ylim([0 0.75]); 
+ %   xlim([-2 2]); 
     maxcolor=max(max(log10(Azrm)));  
     caxis ([-6 maxcolor]); 
     
-    set(gca,'XTickLabel',{'2','1','0','1','2'});
+ %   set(gca,'XTickLabel',{'2','1','0','1','2'});
     title('log_1_0( A[r][z] ) - REF: Absorption Probability Density [1/cm^3] ')
     colorbar; 
     colormap jet;
@@ -135,10 +135,10 @@ else
     set(gca,'fontsize',sz)
     xlabel('r [cm]')
     ylabel('z [cm]')
-    ylim([0 0.75]); 
-    xlim([-2 2]); 
+  %  ylim([0 0.75]); 
+  %  xlim([-2 2]); 
     caxis ([-6 maxcolor]); 
-    set(gca,'XTickLabel',{'2','1','0','1','2'});
+  %  set(gca,'XTickLabel',{'2','1','0','1','2'});
     title('log_1_0( A[r][z] ) - CMP1: Absorption Probability Density [1/cm^3] ')
     colorbar; 
     colormap jet;    
@@ -159,9 +159,9 @@ if CMP==0
     set(gca,'fontsize',sz)
     xlabel('r [cm]');   
     ylabel('z [cm]'); 
-    xlim([-2 2]);       
-    ylim([0 0.75]);     
-    set(gca,'XTickLabel',{'2','1','0','1','2'});
+%    ylim([0 0.75]); 
+%    xlim([-2 2]);    
+%    set(gca,'XTickLabel',{'2','1','0','1','2'});
 
     title('(a)','FontWeight','bold','FontSize',12,'FontName','Arial');
     %title('log_1_0( F[r][z] ) - Photon Fluence for Impulse Response [1/cm^2] ')
@@ -185,10 +185,10 @@ if CMP==0
     set(gca,'YDir','reverse'); 
     xlabel('r [cm]'); 
     ylabel('z [cm]'); 
-    ylim([0 0.75]); 
-    xlim([-2 2]); 
+%    ylim([0 0.75]); 
+%    xlim([-2 2]); 
 
-    set(gca,'XTickLabel',{'2','1','0','1','2'});
+ %   set(gca,'XTickLabel',{'2','1','0','1','2'});
     set(gca,'Position',[0.1288 0.08647 0.6576 0.3412]);
     set(h,'LineColor',[0 0 0]); %Black contour lines
     title('(b)','FontWeight','bold','FontSize',12,'FontName','Arial');
@@ -204,7 +204,7 @@ else
     % Left Panel - Reference 
     subplot(2,2,1); 
     imagesc(rm(u),z(v),log10(Fzrm(v,u)));
-    xlim([-2 2]);       ylim([0 0.75]);  
+ %   xlim([-2 2]);       ylim([0 0.75]);  
     xlabel('r [cm]');   ylabel('z [cm]'); 
 
     colorbar; 
@@ -212,7 +212,7 @@ else
         
     subplot(2,2,2); 
     imagesc(rm(u),z(v),log10(Fzrm_cmp(v,u)));
-    xlim([-2 2]);       ylim([0 0.75]);  
+%    xlim([-2 2]);       ylim([0 0.75]);  
     xlabel('r [cm]');   ylabel('z [cm]'); 
 
     colorbar; 
@@ -224,7 +224,7 @@ else
     [C,h]=contour(rm(u), z(v), Fzrm(v,u), contourlevel);
     clabel(C,h,'FontSize',12,'FontWeight','bold');
     set(gca,'YDir','reverse'); 
-    xlim([-2 2]);       ylim([0 0.75]);  
+  %  xlim([-2 2]);       ylim([0 0.75]);  
     xlabel('r [cm]');   ylabel('z [cm]'); 
     %set(gca,'Position',[0.1288 0.08647 0.6576 0.3412]);
     set(h,'LineColor',[0 0 0]); %Black contour lines
@@ -236,7 +236,7 @@ else
     [C,h]=contour(rm(u), z(v), Fzrm_cmp(v,u), contourlevel);
     clabel(C,h,'FontSize',12,'FontWeight','bold');
     set(gca,'YDir','reverse'); 
-    xlim([-2 2]);       ylim([0 0.75]);  
+   % xlim([-2 2]);       ylim([0 0.75]);  
     xlabel('r [cm]');   ylabel('z [cm]'); 
     %set(gca,'Position',[0.1288 0.08647 0.6576 0.3412]);
     set(h,'LineColor',[0 0 0]); %Black contour lines
