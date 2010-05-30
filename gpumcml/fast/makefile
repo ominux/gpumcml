@@ -33,23 +33,32 @@ GCC := g++
 HP_64 = $(shell uname -m | grep 64)
 ifeq "$(strip $(HP_64))" ""
   # 32-bit architecture
-	LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib
-	LIBCUTIL_NAME := cutil_i386
+  LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib
+  LIBCUTIL_NAME := cutil_i386
 else
   ifeq "$(strip $(COMPILE_32))" "1"
     # 64-bit architecture, but we compile 32-bit binary.
-	  LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib
-	  LIBCUTIL_NAME := cutil_i386
-	else
-	  LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib64
-	  LIBCUTIL_NAME := cutil_x86_64
+    LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib
+    LIBCUTIL_NAME := cutil_i386
+  else
+    LIBCUDART_DIR := -L$(CUDA_INSTALL_ROOT)/lib64
+    LIBCUTIL_NAME := cutil_x86_64
   endif
 endif
 
-CFLAGS := -Wall -O3
-LDFLAGS := $(LIBCUDART_DIR) -Lcutil-linux
+OS_NAME = $(shell uname -s)
+ifeq "$(OS_NAME)" "Linux"
+  # Linux OS
+  LIBCUTIL_DIR := cutil-linux
+else
+  # OS X
+  LIBCUTIL_DIR := cutil-osx
+endif
 
-NVCC_FLAGS := -I$(CUDA_INSTALL_ROOT)/include -Icutil-linux
+CFLAGS := -Wall -O3
+LDFLAGS := $(LIBCUDART_DIR) -L$(LIBCUTIL_DIR)
+
+NVCC_FLAGS := -I$(CUDA_INSTALL_ROOT)/include -I$(LIBCUTIL_DIR)
 NVCC_FLAGS += -O3 -DUNIX -use_fast_math
 NVCC_FLAGS += -Xptxas -v
 #export PTX_FLAGS := $(PTXAS_FLAGS) -maxrregcount 64 -mem -v
@@ -92,7 +101,7 @@ NVCC_FLAGS_SM20 := $(NVCC_FLAGS) $(GENCODE_SM20) -D__CUDA_ARCH__=200
 ifneq "$(strip $(MAX_REG_COUNT_SM20))" "0"
 NVCC_FLAGS_SM20 += -maxrregcount $(MAX_REG_COUNT_SM20)
 endif
-NVCC_FLAGS_SM20 += #-keep # -deviceemu
+NVCC_FLAGS_SM20 += -keep # -deviceemu
 
 $(PROG_SM20): $(PROG_SM20).cu_o gpumcml_io.o
 	-$(GCC) $(LDFLAGS) -o $@ $^ -lcudart -l$(LIBCUTIL_NAME)
