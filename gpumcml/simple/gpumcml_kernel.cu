@@ -126,23 +126,26 @@ __device__ void Hop(PhotonStructGPU *photon)
 //////////////////////////////////////////////////////////////////////////////
 //   Drop a part of the weight of the photon to simulate absorption
 //////////////////////////////////////////////////////////////////////////////
-__device__ void Drop(PhotonStructGPU *photon, UINT64 *g_A_rz)
+__device__ void Drop(UINT32 ignoreDetection, PhotonStructGPU *photon, UINT64 *g_A_rz)
 {
-
+   
   FLOAT dwa = photon->w * d_layerspecs[photon->layer].mua_muas;
   photon->w -= dwa;
 
-  UINT32 iz = __fdividef(photon->z, d_simparam.dz);
-  UINT32 ir = __fdividef(sqrtf(photon->x * photon->x + photon->y * photon->y),d_simparam.dr);
+  // If scoring of absorption is specified (no -A flag in command line)
+  if (ignoreDetection==0) { 
+    UINT32 iz = __fdividef(photon->z, d_simparam.dz);
+    UINT32 ir = __fdividef(sqrtf(photon->x * photon->x + photon->y * photon->y),d_simparam.dr);
 
-  // Only record if photon is not at the edge!!
-  // This will be ignored anyways.
-  if (iz < d_simparam.nz && ir < d_simparam.nr)
-  {
-    UINT32 addr = ir * d_simparam.nz + iz;
+    // Only record if photon is not at the edge!!
+    // This will be ignored anyways.
+    if (iz < d_simparam.nz && ir < d_simparam.nr)
+    {
+      UINT32 addr = ir * d_simparam.nz + iz;
 
-    // Write to the global memory.
-    AtomicAddULL(&g_A_rz[addr], (UINT64)(dwa * WEIGHT_SCALE));
+      // Write to the global memory.
+      AtomicAddULL(&g_A_rz[addr], (UINT64)(dwa * WEIGHT_SCALE));
+    }
   }
 
 }
@@ -453,9 +456,7 @@ __global__ void MCMLKernel(SimState d_state, GPUThreadStates tstates)
         FastReflectTransmit(&photon, &d_state, &rnd_x, &rnd_a);
       else
       {
-        // If scoring of absorption is specified (no -A flag in command line)
-        if (ignoreAdetection == 0)
-            Drop (&photon, d_state.A_rz); 
+        Drop (ignoreAdetection, &photon, d_state.A_rz); 
 
         Spin(d_layerspecs[photon.layer].g, &photon, &rnd_x, &rnd_a);
       }
