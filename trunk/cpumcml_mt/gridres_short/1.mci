@@ -1,0 +1,21 @@
+####
+# Template of input files for Monte Carlo simulation (mcml).
+# Anything in a line after "#" is ignored as comments.
+# Space lines are also ignored.
+# Lengths are in cm, mua and mus are in 1/cm.
+####
+
+1.0						# file version
+1						# number of runs
+
+### Specify data for run 1
+1_lipid.mco	A					# output filename, ASCII/Binary
+100000						# No. of photons
+1	1					# dz, dr
+1	1	1				# No. of dz, dr & da.
+
+1						# No. of layers
+# n	mua	mus	g	d		# One line for each layer
+1.0						# n for medium above.
+1.33	0.015	707.7	0.87	100		# layer 1
+1.0						# n for medium below.
