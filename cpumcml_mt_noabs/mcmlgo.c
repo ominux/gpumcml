@@ -9,7 +9,9 @@
 #include "mwc_prng.h"
 #include "dSFMT.h"
 
-//#define USE_MT_PRNG 1
+#define USE_MT_PRNG 1
+
+#define NO_ABS 1  //Equivalent to -A flag in GPU-MCML
 
 #define STANDARDTEST 0
   /* testing program using fixed rnd seed. */
@@ -386,6 +388,47 @@ Boolean HitBoundary(PhotonStruct *  Photon_Ptr,
  *	The dropped weight is assigned to the absorption array 
  *	elements.
  ****/
+void DropNoAbs(InputStruct  *	In_Ptr, 
+		  PhotonStruct *	Photon_Ptr,
+		  OutStruct *		Out_Ptr)
+{
+  double dwa;		/* absorbed weight.*/
+  //double x = Photon_Ptr->x;
+  //double y = Photon_Ptr->y;
+  //double izd, ird;	/* LW 5/20/98. To avoid out of short range.*/
+  ///short  iz, ir;	/* index to z & r. */
+  short  layer = Photon_Ptr->layer;
+  double mua, mus;		
+  
+  /* compute array indices. */
+  //izd = Photon_Ptr->z/In_Ptr->dz;
+  //if(izd>In_Ptr->nz-1) iz=In_Ptr->nz-1;
+  //else iz = izd;
+  
+  //ird = sqrt(x*x+y*y)/In_Ptr->dr;
+  //if(ird>In_Ptr->nr-1) ir=In_Ptr->nr-1;
+  //else ir = ird;
+  
+  /* update photon weight. */
+  mua = In_Ptr->layerspecs[layer].mua;
+  mus = In_Ptr->layerspecs[layer].mus;
+  dwa = Photon_Ptr->w * mua/(mua+mus);
+  Photon_Ptr->w -= dwa;
+  
+  /* assign dwa to the absorption array element. */
+  //Out_Ptr->A_rz[ir][iz]	+= dwa;
+}
+
+/***********************************************************
+ *	Drop photon weight inside the tissue (not glass).
+ *
+ *  The photon is assumed not dead. 
+ *
+ *	The weight drop is dw = w*mua/(mua+mus).
+ *
+ *	The dropped weight is assigned to the absorption array 
+ *	elements.
+ ****/
 void Drop(InputStruct  *	In_Ptr, 
 		  PhotonStruct *	Photon_Ptr,
 		  OutStruct *		Out_Ptr)
@@ -402,7 +445,7 @@ void Drop(InputStruct  *	In_Ptr,
   izd = Photon_Ptr->z/In_Ptr->dz;
   if(izd>In_Ptr->nz-1) iz=In_Ptr->nz-1;
   else iz = izd;
-  
+
   ird = sqrt(x*x+y*y)/In_Ptr->dr;
   if(ird>In_Ptr->nr-1) ir=In_Ptr->nr-1;
   else ir = ird;
@@ -748,7 +791,13 @@ void HopDropSpinInTissue(InputStruct  *  In_Ptr,
   }
   else {
     Hop(Photon_Ptr);
+
+#ifdef NO_ABS
+    DropNoAbs(In_Ptr, Photon_Ptr, Out_Ptr);
+#else
     Drop(In_Ptr, Photon_Ptr, Out_Ptr);
+#endif 
+
     Spin(In_Ptr->layerspecs[Photon_Ptr->layer].g, 
 		Photon_Ptr);
   }
