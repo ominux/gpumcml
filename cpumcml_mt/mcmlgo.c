@@ -11,7 +11,7 @@
 
 #define USE_MT_PRNG 1
 
-#define NO_ABS 1  //Equivalent to -A flag in GPU-MCML
+//#define NO_ABS 1  //Equivalent to -A flag in GPU-MCML
 
 #define STANDARDTEST 0
   /* testing program using fixed rnd seed. */
