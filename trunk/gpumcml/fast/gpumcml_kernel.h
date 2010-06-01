@@ -107,8 +107,8 @@
 #define NUM_THREADS_PER_BLOCK 896
 // Disable this option to test the effect of true L1 cache (48KB).
 #define CACHE_A_RZ_IN_SMEM
-#define MAX_IR ##MAX_IR##
-#define MAX_IZ ##MAX_IZ##
+#define MAX_IR 48
+#define MAX_IZ 128
 // #define USE_32B_ELEM_FOR_ARZ_SMEM
 #define N_A_RZ_COPIES 4
 // #define USE_64B_ATOMIC_SMEM
@@ -121,8 +121,8 @@
 
 #define NUM_THREADS_PER_BLOCK 256
 #define CACHE_A_RZ_IN_SMEM
-#define MAX_IR ##MAX_IR##
-#define MAX_IZ ##MAX_IZ##
+#define MAX_IR 28
+#define MAX_IZ 128
 #define USE_32B_ELEM_FOR_ARZ_SMEM
 #define N_A_RZ_COPIES 1
 #define USE_64B_ATOMIC_GMEM
