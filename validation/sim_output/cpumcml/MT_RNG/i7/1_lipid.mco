@@ -1,0 +1,68 @@
+A1 	# Version number of the file format.
+
+####
+# Data categories include: 
+# InParm, RAT, 
+# A_l, A_z, Rd_r, Rd_a, Tt_r, Tt_a, 
+# A_rz, Rd_ra, Tt_ra 
+####
+
+# User time:    21706 sec =     6.03 hr.   Simulation time of this run.
+
+InParm 			# Input parameters. cm is used.
+1_lipid.mco 	A		# output file name, ASCII.
+10000000 			# No. of photons
+1	1		# dz, dr [cm]
+1	1	1	# No. of dz, dr, da.
+
+1					# Number of layers
+#n	mua	mus	g	d	# One line for each layer
+1					# n for medium above
+1.33	0.015	707.7	0.87	100	# layer 1
+1					# n for medium below
+
+RAT #Reflectance, absorption, transmission. 
+0.0200593      	#Specular reflectance [-]
+0.924403       	#Diffuse reflectance [-]
+0.055538       	#Absorbed fraction [-]
+0              	#Transmittance [-]
+
+A_l #Absorption as a function of layer. [-]
+     0.05554
+
+A_z #A[0], [1],..A[nz-1]. [1/cm]
+  5.5538E-02
+
+Rd_r #Rd[0], [1],..Rd[nr-1]. [1/cm2]
+  2.9425E-01
+
+Rd_a #Rd[0], [1],..Rd[na-1]. [sr-1]
+  1.3246E-01
+
+Tt_r #Tt[0], [1],..Tt[nr-1]. [1/cm2]
+  0.0000E+00
+
+Tt_a #Tt[0], [1],..Tt[na-1]. [sr-1]
+  0.0000E+00
+
+# A[r][z]. [1/cm3]
+# A[0][0], [0][1],..[0][nz-1]
+# A[1][0], [1][1],..[1][nz-1]
+# ...
+# A[nr-1][0], [nr-1][1],..[nr-1][nz-1]
+A_rz
+  1.7678E-02 
+# Rd[r][angle]. [1/(cm2sr)].
+# Rd[0][0], [0][1],..[0][na-1]
+# Rd[1][0], [1][1],..[1][na-1]
+# ...
+# Rd[nr-1][0], [nr-1][1],..[nr-1][na-1]
+Rd_ra
+  6.6229E-02 
+# Tt[r][angle]. [1/(cm2sr)].
+# Tt[0][0], [0][1],..[0][na-1]
+# Tt[1][0], [1][1],..[1][na-1]
+# ...
+# Tt[nr-1][0], [nr-1][1],..[nr-1][na-1]
+Tt_ra
+  0.0000E+00 
