@@ -11,7 +11,7 @@
 2						# number of runs
 
 ### Specify data for run 1
-sevenlayer_600nm_100K.mco	A		# output filename, ASCII/Binary
+test_100K.mco	A				# output filename, ASCII/Binary
 100000						# No. of photons
 0.002	0.01					# dz, dr
 500	200	30				# No. of dz, dr & da.
@@ -28,8 +28,8 @@ sevenlayer_600nm_100K.mco	A		# output filename, ASCII/Binary
 1.44	0.3	150	0.8	0.59		# layer 7: subcutaneous fat
 1.0						# n for medium below.
 
-### Specify data for run 1
-sevenlayer_600nm_1M.mco	A			# output filename, ASCII/Binary
+### Specify data for run 2
+test_1M.mco	A				# output filename, ASCII/Binary
 1000000						# No. of photons
 0.002	0.01					# dz, dr
 500	200	30				# No. of dz, dr & da.
