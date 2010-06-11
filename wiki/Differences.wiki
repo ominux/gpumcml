@@ -1,4 +1,5 @@
 #summary How GPUMCML and CPUMCML differs
+#sidebar SiteMap
 
 = Introduction =
 
