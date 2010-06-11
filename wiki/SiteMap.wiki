@@ -1,3 +1,2 @@
-* [Setup Getting Started Guide]
-
-   * [FAQ FAQ]
+  * [Setup Getting Started Guide]
+  * [FAQ FAQ]
