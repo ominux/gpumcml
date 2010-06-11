@@ -1,4 +1,5 @@
 #summary Troubleshooting FAQ
+#sidebar SiteMap
 
 = No CUDA Compatible Device Found=
 
