@@ -412,7 +412,13 @@ int main(int argc, char* argv[])
   // Allocate and initialize RNG seeds (for all threads on all GPUs).
   UINT64 *x = (UINT64*)malloc(n_threads * sizeof(UINT64));
   UINT32 *a = (UINT32*)malloc(n_threads * sizeof(UINT32));
-  if (init_RNG(x, a, n_threads, "safeprimes_base32.txt", seed)) return 1;
+
+#ifdef _WIN32 
+    if (init_RNG(x, a, n_threads, "safeprimes_base32.txt", seed)) return 1;
+#else 
+    if (init_RNG(x, a, n_threads, "executable/safeprimes_base32.txt", seed)) return 1;
+#endif
+
   printf("\nUsing the MWC random number generator ...\n");
 
   // Assign these seeds to each host thread state.
