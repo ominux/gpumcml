@@ -1,0 +1,3 @@
+#summary Outline of wiki documentation for sidebar
+
+= Getting Started Guide =
