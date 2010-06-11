@@ -1,5 +1,6 @@
 #summary How the File Directory is Organized
 #labels Featured
+#sidebar SiteMap
 
 == Overview == 
 
