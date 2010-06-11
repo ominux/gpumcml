@@ -26,3 +26,27 @@ Make sure you have everything set up properly, by running a simple SDK code samp
 Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fast GPUMCML]
 
 == Step 5: Compile and run GPUMCML ==
+==== For Windows User (Visual Studio or VS 2008)====
+----
+1) Open the project file with VS 2008: GPUMCML.vcproj 
+
+2) Click Build Solution (or press F7) 
+
+3) Run the program in VS (press F5)  OR 
+   Run the program in command prompt 
+   a) Start-->Run-->Type cmd
+   b) Type cd "<DIR>/fast_gpumcml/executable" where 
+      <DIR> is the absolute path where you put the files
+   b) Launch the program: GPUMCML ../input/test.mci
+
+==== For Linux User (Tested on Ubuntu )====
+----
+1) Type `make` 
+
+2) Execute the correct version based on the compute capability (CC) of your graphics card (check Appendix A of the [http://developer.download.nvidia.com/compute/cuda/3_0/toolkit/docs/NVIDIA_CUDA_ProgrammingGuide.pdf CUDA programming guide]) 
+
+   GTX 480 (Fermi - CC 2.0) 
+   Type ./gpumcml.sm_20 input/test.mci 
+
+   GTX 280 (pre-Fermi - CC 1.3) 
+   ./gpumcml.sm_13 input/test.mci
