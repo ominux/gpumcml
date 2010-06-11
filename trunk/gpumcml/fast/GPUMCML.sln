@@ -17,20 +17,16 @@ Global
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Debug|Win32.ActiveCfg = Debug|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Debug|Win32.Build.0 = Debug|Win32
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Debug|x64.ActiveCfg = Debug|x64
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Debug|x64.Build.0 = Debug|x64
+		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Debug|x64.ActiveCfg = Debug|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuDebug|Win32.ActiveCfg = EmuDebug|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuDebug|Win32.Build.0 = EmuDebug|Win32
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuDebug|x64.ActiveCfg = EmuDebug|x64
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuDebug|x64.Build.0 = EmuDebug|x64
+		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuDebug|x64.ActiveCfg = EmuDebug|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuRelease|Win32.ActiveCfg = EmuRelease|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuRelease|Win32.Build.0 = EmuRelease|Win32
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuRelease|x64.ActiveCfg = EmuRelease|x64
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuRelease|x64.Build.0 = EmuRelease|x64
+		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.EmuRelease|x64.ActiveCfg = EmuRelease|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Release|Win32.ActiveCfg = Release|Win32
 		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Release|Win32.Build.0 = Release|Win32
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Release|x64.ActiveCfg = Release|x64
-		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Release|x64.Build.0 = Release|x64
+		{55F71337-32A6-4C26-8CBA-A06A9183D6F2}.Release|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

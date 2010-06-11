@@ -32,7 +32,7 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
-				CommandLine="-arch sm_12"
+				CommandLine="-arch sm_12&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
@@ -115,7 +115,7 @@
 			/>
 			<Tool
 				Name="VCCustomBuildTool"
-				CommandLine="-arch sm_12"
+				CommandLine="-arch sm_12&#x0D;&#x0A;"
 			/>
 			<Tool
 				Name="VCXMLDataGeneratorTool"
