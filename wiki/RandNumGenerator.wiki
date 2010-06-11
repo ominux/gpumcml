@@ -1,4 +1,5 @@
 #summary How the Random Number Generator Works
+#sidebar SiteMap
 
 == Introduction ==
 
