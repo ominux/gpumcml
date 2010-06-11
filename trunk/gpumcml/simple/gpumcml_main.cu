@@ -239,7 +239,13 @@ int main(int argc, char* argv[])
 
   unsigned long long *x = (unsigned long long*)malloc(len * sizeof(unsigned long long));
   unsigned int *a = (unsigned int*)malloc(len * sizeof(unsigned int));
+
+#ifdef _WIN32 
   if (init_RNG(x, a, len, "safeprimes_base32.txt", seed)) return 1;
+#else 
+  if (init_RNG(x, a, len, "executable/safeprimes_base32.txt", seed)) return 1;
+#endif
+  
   printf("Using the MWC random number generator ...\n");
 
   //perform all the simulations
