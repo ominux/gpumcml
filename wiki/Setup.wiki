@@ -4,8 +4,6 @@
 
 <wiki:toc max_depth="2" />
 
-= Introduction =
-
 This tutorial aims to guide new users through the initial pain of setting up, compiling and running the source code.
 
 == Step 0: Check your graphics card == 
