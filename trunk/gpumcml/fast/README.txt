@@ -9,7 +9,7 @@
 - Supports linux and Windows environment (Visual Studio)
 
 
-|| A2) DONWLOAD CUDA 3.0, Drivers and SDK
+|| A2) DOWNLOAD CUDA 3.0, Drivers and SDK
 -------------------------------------------------------
 1) Go to http://developer.nvidia.com/object/cuda_3_0_downloads.html
 2) Download and install the following: 
