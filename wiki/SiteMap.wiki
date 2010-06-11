@@ -1,1 +1,2 @@
 * [Setup Getting Started Guide]
+* [FAQ FAQ]
