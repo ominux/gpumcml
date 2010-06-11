@@ -1,7 +1,8 @@
 #summary A step-by-step guide to use GPU-MCML
 #labels Featured,Phase-Deploy
-<wiki:toc max_depth="2" />
 #sidebar SiteMap
+
+<wiki:toc max_depth="2" />
 
 = Introduction =
 
