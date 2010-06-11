@@ -1,5 +1,6 @@
-#summary Getting Started Guide.
+#summary A step-by-step guide to use GPU-MCML
 #labels Featured,Phase-Deploy
+<wiki:toc max_depth="2" />
 
 = Introduction =
 
@@ -8,11 +9,3 @@ This tutorial aims to guide new users through the initial pain of setting up the
 == Step 0: Graphics Card Setup == 
 
 == Step 1: CUDA Setup ==
-
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
