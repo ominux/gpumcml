@@ -17,4 +17,4 @@ Install Microsoft Visual Studio 2008 (Visual C++ 2008). For a free version, down
 == Step 2: Install CUDA and Developer Drivers ==
 Then, just follow all the steps in the [http://developer.download.nvidia.com/compute/cuda/3_0/docs/GettingStartedWindows.pdf Getting Started Guide] from NVIDIA.  
 
-If you have a Fermi GPU, install [http://developer.nvidia.com/object/cuda_3_0_downloads.html CUDA Toolkit 3.0] along with the proper Developer Drivers.  *Make sure you upgrade both the driver and the CUDA Toolkit, and not one of the two!  Otherwise, your code will not run !*
+If you have a Fermi GPU, install [http://developer.nvidia.com/object/cuda_3_0_downloads.html CUDA ToolKit 3.0 and GPU Computing SDK code samples] along with the proper Developer Drivers.  *Make sure you upgrade both the driver and the CUDA Toolkit, and not one of the two!  Otherwise, your code will not run !*
