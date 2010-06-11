@@ -1,4 +1,5 @@
 #summary How the Data Structures Work
+#sidebar SiteMap
 
 = Introduction =
 
