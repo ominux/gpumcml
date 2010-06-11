@@ -15,6 +15,14 @@ If you don't have a proper graphics card or if you want the best performance fro
 Install Microsoft Visual Studio 2008 (Visual C++ 2008). For a free version, download [http://www.microsoft.com/express/downloads/ Visual C++ 2008 Express Edition].
 
 == Step 2: Install CUDA, Developer Drivers, and SDK Samples ==
-Then, just follow all the steps in the [http://developer.download.nvidia.com/compute/cuda/3_0/docs/GettingStartedWindows.pdf Getting Started Guide] from NVIDIA.  
+Then, just follow all the steps in the [http://developer.download.nvidia.com/compute/cuda/3_0/docs/GettingStartedWindows.pdf NVIDIA Getting Started Guide].  
 
 If you have a Fermi GPU, install [http://developer.nvidia.com/object/cuda_3_0_downloads.html CUDA ToolKit 3.0 and GPU Computing SDK code samples] along with the proper Developer Drivers.  *Make sure you upgrade both the driver and the CUDA Toolkit, and not one of the two!  Otherwise, your code will not run !*
+
+== Step 3: Verify the steps above ==
+Make sure you have everything set up properly, by running a simple SDK code sample, as suggested in the [http://developer.download.nvidia.com/compute/cuda/3_0/docs/GettingStartedWindows.pdf NVIDIA Getting Started Guide] 
+
+== Step 4: Download our source code package ==
+Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fast GPUMCML]
+
+== Step 5: Compile and run GPUMCML ==
