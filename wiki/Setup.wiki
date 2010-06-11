@@ -6,8 +6,10 @@
 
 = Introduction =
 
-This tutorial aims to guide new users through the initial pain of setting up the environment for compiling and running the source code.
+This tutorial aims to guide new users through the initial pain of setting up, compiling and running the source code.
 
 == Step 0: Graphics Card Setup == 
+Before you start, make sure that your graphics card is CUDA compatible (check Appendix A of the [http://developer.download.nvidia.com/compute/cuda/3_0/toolkit/docs/NVIDIA_CUDA_ProgrammingGuide.pdf CUDA programming guide]) and has a Compute Capability of between 1.1 and 2.0 (Fermi).
 
 == Step 1: CUDA Setup ==
+Then, just follow all the steps listed in the [http://developer.download.nvidia.com/compute/cuda/3_0/docs/GettingStartedWindows.pdf Getting Started Guide] from NVIDIA. 
