@@ -25,7 +25,7 @@ Make sure you have everything set up properly, by running a simple SDK code samp
 == Step 4: Download our source code package ==
 Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fast GPUMCML]
 
-In Linux, type *unzip fast-gpumcml.zip*.   In Windows, use any one of the common compression software such as WinZip or WinRAR or [http://www.7-zip.org/ 7-Zip (free)].
+In Linux, type *unzip fast-gpumcml.zip*.   In Windows, use any one of the common compression software such as WinRAR or WinZip or [http://www.7-zip.org/ 7-Zip (free)].
 
 == Step 5: Compile and run GPUMCML ==
 ====_For Windows User (Visual Studio or VS 2008)_====
