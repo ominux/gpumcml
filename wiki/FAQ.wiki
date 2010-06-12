@@ -1,14 +1,10 @@
 #summary Troubleshooting FAQ
 #sidebar SiteMap
 
-= No CUDA Compatible Device Found=
+The following list of FAQs is gathered from our development team's experience and from other user's feedback.  Feel free to let us know what troubles you are having.  
 
-Install the latest drivers from NVIDIA.  Don't use the default Windows Driver that is automatically installed at start-up immediately after installing the new card.
+=== Problem: No CUDA Compatible Device Found ===
+*Solution*: Install the latest drivers from NVIDIA.  Don't use the default Windows Driver that is automatically installed at start-up immediately after installing the new card.
 
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+=== Problem: No CUDA Compatible Device Found ===
+*Solution*: Install the latest drivers from NVIDIA.  Don't use the default Windows Driver that is automatically installed at start-up immediately after installing the new card.
