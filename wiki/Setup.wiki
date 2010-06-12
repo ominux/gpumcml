@@ -26,7 +26,7 @@ Make sure you have everything set up properly, by running a simple SDK code samp
 Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fast GPUMCML]
 
 == Step 5: Compile and run GPUMCML ==
-==== For Windows User (Visual Studio or VS 2008)====
+====_For Windows User (Visual Studio or VS 2008)_====
 ----
   # Open the project file with VS 2008: *GPUMCML.vcproj* 
   # Click Build Solution (or press F7) 
@@ -35,7 +35,7 @@ Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fa
     * Type *cd DIR/fast_gpumcml/executable* where *DIR* is the absolute path where you put the files
     * Launch the program: Type *GPUMCML ../input/test.mci*
 
-==== For Linux User (Tested on Ubuntu )====
+==== _For Linux User (Tested on Ubuntu)_ ====
 ----
 1) Type *make* 
 
