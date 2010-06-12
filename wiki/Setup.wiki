@@ -28,17 +28,12 @@ Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fa
 == Step 5: Compile and run GPUMCML ==
 ==== For Windows User (Visual Studio or VS 2008)====
 ----
-1) Open the project file with VS 2008: *GPUMCML.vcproj* 
-
-2) Click Build Solution (or press F7) 
-
-3) Run the program in VS (press F5) OR 
-
-   Run the program using the command prompt:  
-   a) Start-->Run-->Type *cmd*
-   b) Type *cd DIR/fast_gpumcml/executable* where 
-      DIR is the absolute path where you put the files
-   b) Launch the program: *GPUMCML ../input/test.mci*
+  # Open the project file with VS 2008: *GPUMCML.vcproj* 
+  # Click Build Solution (or press F7) 
+  # Run the program in VS (press F5) _OR_ run the program using the command prompt:  
+    * Start-->Run-->Type *cmd*
+    * Type *cd DIR/fast_gpumcml/executable* where *DIR* is the absolute path where you put the files
+    * Launch the program: Type *GPUMCML ../input/test.mci*
 
 ==== For Linux User (Tested on Ubuntu )====
 ----
@@ -49,3 +44,10 @@ Download and unarchive: [http://gpumcml.googlecode.com/files/fast-gpumcml.zip Fa
    GTX 480 (Fermi - CC 2.0): Type *./gpumcml.sm_20 input/test.mci* 
 
    GTX 280 (CC 1.3): Type *./gpumcml.sm_13 input/test.mci*
+
+
+== Step 6: Plot the simulation output with MATLAB ==
+Use the MATLAB scripts to plot the output 
+   * Go to the *viewoutput* folder
+   * Run *plot_simulation.m* 
+   * Select the output file when prompted.  Two files are generated in Step 5: *test_1M.mco* and *test_100K.mco* executed with 1 million and 100 thousand photon packets, respectively (the files are in the *executable* folder if VS 2008 is used or in the top-level directory if Linux is used).  
