@@ -18,7 +18,7 @@ Install Microsoft Visual Studio 2008 (Visual C++ 2008). For a free version, down
 
 == Step 1b: Install GNU Compiler and Utilities (Linux Users Only) ==
 ----
-Install the GCC compiler and the make utility, from the package manager of your choice. On a Debian-derived OS, simply type the following command:
+Install the GCC compiler and the make utility, from the package manager of your choice. On a Debian-derived OS (e.g., Ubuntu), simply type the following command:
 
 `> sudo aptitude install build-essential`
 
