@@ -12,9 +12,15 @@ Before you start, make sure that your graphics card is CUDA compatible (check Ap
 
 If you don't have a proper graphics card or if you want the best performance from our code, we recommend purchasing the latest Fermi-generation GPU, such as [http://www.nvidia.com/object/product_geforce_gtx_480_us.html GeForce GTX 480].  However, ensure that your power supply is at least 600 W (with 6-pin & 8-pin power connectors) and the motherboard supports PCI-E 2.0 x 16.  
 
-== Step 1: Install Visual Studio (Windows Users Only) ==
+== Step 1a: Install Visual Studio (Windows Users Only) ==
 ----
 Install Microsoft Visual Studio 2008 (Visual C++ 2008). For a free version, download [http://www.microsoft.com/express/downloads/ Visual C++ 2008 Express Edition].
+
+== Step 1b: Install GNU Compiler and Utilities (Linux Users Only) ==
+----
+Install the GCC compiler and the make utility, from the package manager of your choice. On a Debian-derived OS, simply type the following command:
+
+`> sudo aptitude install build-essential`
 
 == Step 2: Install CUDA, Developer Drivers, and SDK Samples ==
 ----
