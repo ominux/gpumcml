@@ -88,15 +88,15 @@
 
 #define NUM_BLOCKS 30
 #define NUM_THREADS_PER_BLOCK 256
-// #define EMULATED_ATOMIC
+#define EMULATED_ATOMIC
 
 /////////////////////////////////////////////
 // Compute Capability 1.1
 /////////////////////////////////////////////
 #elif (__CUDA_ARCH__ == 110)
 
-#define NUM_BLOCKS 16       // should match the number of SMs on the GPUs
-#define NUM_THREADS_PER_BLOCK 256
+#define NUM_BLOCKS 14       // should match the number of SMs on the GPUs
+#define NUM_THREADS_PER_BLOCK 192
 #define EMULATED_ATOMIC
 
 /////////////////////////////////////////////
