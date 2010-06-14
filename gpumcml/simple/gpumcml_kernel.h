@@ -32,25 +32,90 @@
 */
 #define NUM_STEPS 50000  //Use 5000 for faster response time
 
-/*  Kernel execution configuration 
-*/
-#define NUM_BLOCKS 30
-#define NUM_THREADS_PER_BLOCK 256  //512 for Fermi, 256 for GTX 280
-#define NUM_THREADS (NUM_BLOCKS * NUM_THREADS_PER_BLOCK)
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
 
-/*  Uncomment for old architecture (compute capability 1.1)
-If enabled, 32-bit atomic instructions are used to 
-perform/emulate 64-bit atomicAdd to global memory 
-Check the NVIDIA programming guide to see what compute 
-capability your graphics card supports
-*/
+// Make sure __CUDA_ARCH__ is always defined by the user.
+#ifdef _WIN32 
+  #define __CUDA_ARCH__ 120
+#endif
+
+#ifndef __CUDA_ARCH__
+#error "__CUDA_ARCH__ undefined!"
+#endif
+
+/**
+ * Although this simple version of GPUMCML is not intended for high
+ * performance, there are still a few parameters to be configured for
+ * different GPUs.
+ *
+ * - NUM_BLOCKS:
+ *      number of thread blocks in the grid to be launched
+ *
+ * - NUM_THREADS_PER_BLOCK:
+ *      number of threads per thread block
+ *
+ * - EMULATED_ATOMIC:
+ *      Enable this option for GPUs with Compute Capability 1.1,
+ *      which do not support 64-bit atomicAdd to the global memory.
+ *      In this case, we use two 32-bit atomicAdd's to emulate the
+ *      64-bit version.
+ *
+ * - USE_TRUE_CACHE:
+ *      Enable this option for GPUs with Compute Capability 2.0 (Fermi),
+ *      which have a 64KB configurable L1 cache in each SM.
+ *      If enabled, the L1 cache is configured to have 48KB of true cache
+ *      and 16KB of shared memory, as opposed to 16KB of true cache and
+ *      48KB of shared memory. Since the shared memory is not utilized
+ *      in this simple version, you are encouraged to enable this option
+ *      to cache more accesses to the absorption array in the global memory.
+ */
+
+/////////////////////////////////////////////
+// Compute Capability 2.0
+/////////////////////////////////////////////
+#if __CUDA_ARCH__ == 200
+
+#define NUM_BLOCKS 30
+#define NUM_THREADS_PER_BLOCK 512
+// #define EMULATED_ATOMIC
+#define USE_TRUE_CACHE
+
+/////////////////////////////////////////////
+// Compute Capability 1.2 or 1.3
+/////////////////////////////////////////////
+#elif (__CUDA_ARCH__ == 120) || (__CUDA_ARCH__ == 130)
+
+#define NUM_BLOCKS 30
+#define NUM_THREADS_PER_BLOCK 256
+// #define EMULATED_ATOMIC
+
+/////////////////////////////////////////////
+// Compute Capability 1.1
+/////////////////////////////////////////////
+#elif (__CUDA_ARCH__ == 110)
+
+#define NUM_BLOCKS 16       // should match the number of SMs on the GPUs
+#define NUM_THREADS_PER_BLOCK 256
 #define EMULATED_ATOMIC
 
-/* Configure the L1 cache to have 16KB of shared memory and
-48KB of hardware-managed cache.
-If this flag is set, shared-memory-based caching is disabled.
-*/
-// #define USE_TRUE_CACHE
+/////////////////////////////////////////////
+// Unsupported Compute Capability
+/////////////////////////////////////////////
+#else
+
+#error "GPUMCML only supports compute capability 1.1 to 2.0!"
+
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Derived macros
+ */
+
+#define NUM_THREADS (NUM_BLOCKS * NUM_THREADS_PER_BLOCK)
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
