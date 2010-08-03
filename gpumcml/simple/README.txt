@@ -59,7 +59,16 @@
 
    Run the program in command prompt 
    a) Start-->Run-->Type cmd
-   b) Type cd "<DIR>/fast_gpumcml/executable" where 
+   b) Type cd "<DIR>/simple_gpumcml/executable" where 
       <DIR> is the absolute path where you put the files
    b) Launch the program: GPUMCML ../input/test.mci
+
+* Two output files are generated in the "executable" folder: 
+  - test_1M.mco
+  - test_100K.mco
+
+4) Use the MATLAB scripts to plot the output 
+   a) Go to the "viewoutput" folder
+   b) Run plot_simulation.m 
+   c) Select 1 of the 2 output files stored in the "executable" folder when prompted
 
