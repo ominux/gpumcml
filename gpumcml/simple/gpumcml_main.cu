@@ -1,7 +1,7 @@
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 //
 //   GPU-based Monte Carlo simulation of photon migration in multi-layered media (GPU-MCML)
-//   Copyright (C) 2009
+//   Copyright (C) 2010
 //	
 //   || DEVELOPMENT TEAM: 
 //   --------------------------------------------------------------------------------------------------
@@ -19,9 +19,7 @@
 //   || NEW FEATURES: 
 //   --------------------------------------------------------------------------------------------------
 //    - Supports the Fermi GPU architecture 
-//    - Multi-GPU execution 
-//    - Automatic selection of optimization parameters  
-//    - Backward compatible on pre-Fermi graphics cards
+//    - Backward compatible with pre-Fermi graphics cards
 //    - Supports linux and Windows environment (Visual Studio)
 //   
 //   || PREVIOUS WORK: 
