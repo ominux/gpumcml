@@ -1,4 +1,4 @@
-#summary How GPUMCML and CPUMCML differs
+#summary How GPU-MCML and CPU-MCML differs
 #sidebar SiteMap
 
 
