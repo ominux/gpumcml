@@ -72,3 +72,48 @@ access to the same variable. As a result, atomic instructions are much more expe
 memory operations. Although their speed has been improved on Fermi-based GPUs,
 it is still very important to optimize atomic accesses to global memory, as explained in the
 following section.
+
+
+== 2. GPU-accelerated MCML Code (GPU-MCML) == 
+----
+This section presents the implementation details of the GPU-accelerated MCML program
+(named GPU-MCML), highlighting how a high level of parallelism is achieved, while avoiding
+memory bottlenecks caused by atomic instructions and global memory accesses. The need to
+carefully consider the underlying GPU architecture, particularly the differences between the pre-Fermi and Fermi GPUs, is discussed.
+
+=== 2.1 Key Performance Bottleneck===
+As all threads need to atomically access the same absorption array in the global memory during
+every fluence update step, this step becomes a major performance bottleneck when thousands
+of threads (13440 threads in example shown in Fig. 3) are present. In CUDA, atomic addition
+is performed using the atomicAdd() instruction. However, using atomicAdd() instructions
+to access the global memory is particularly slow, both because global memory access is
+a few orders of magnitude slower than that of on-chip memories and because atomicity prevents
+parallel execution of the code (by stalling other threads in the code segment where atomic
+instructions are located). This worsens with increasing number of threads due to the higher
+probability for simultaneous access to an element, also known as contention.
+
+=== 2.2 Solution to Performance Bottleneck===
+To reduce contention and access time to the A[r][z] array, two memory optimizations were
+applied:
+
+  # *Storing the high-fluence region in shared memory*: The first optimization is based on the high access rate of the A[r][z] elements near the photon source (or at the origin in the MCML model), causing significant contention when atomic instructions are used. Therefore, this region of the A[r][z] array is cached in the shared memory. Namely, if a photon packet is absorbed inside the high-fluence region, its weight is accumulated atomically into the shared memory copy. Otherwise, its weight is added directly into the global memory atomically. At the end of the simulation, the values temporarily stored in the shared memory copy are written (flushed) to the master copy in the global memory.
+  # *Caching photon absorption history in registers*: To further reduce the number of atomic accesses (even to the shared memory), the recent write history, representing previous absorption events, can be stored privately in registers by each thread.
+
+As an additional optimization to avoid atomic accesses, in the GPU version, photon packets at
+locations beyond the coverage of the absorption grid (as specified through the input parameters
+dr, dz, nr, and nz) no longer accumulate their weights at the perimeter of the grid, unlike
+in the original MCML code. Note that these boundary elements were known to give invalid
+values in the original MCML code.
+
+=== 2.3 Alternative Solution: Reflectance/transmittance-only Mode===
+GPU-MCML offers an alternative way to overcome the performance bottleneck. In some cases,
+the user is not interested in the internal absorption probability collected in the A[r][z] array. As
+the major performance bottleneck is caused by the atomic update of the A[r][z] array for almost
+every step for each photon, ignoring the array update (while still reducing the photon packet
+weight after each scattering event) causes a major performance boost while still retaining valid
+reflectance and transmittance outputs. The maximum number of atomic memory operations
+is reduced to the total number of photon packets launched (since reflectance/transmittance is
+recorded atomically only upon exiting the tissue, which happens once per photon packet) and
+these operations are spread out over the entire simulation. Also, the small number of memory
+operations compared to arithmetic operations allows the GPU to “hide” the cost of memory
+operations.
