@@ -93,10 +93,10 @@ instructions are located). This worsens with increasing number of threads due to
 probability for simultaneous access to an element, also known as contention.
 
 === 2.2 Solution to Performance Bottleneck===
-To reduce contention and access time to the A[r][z] array, two memory optimizations were
+To reduce contention and access time to the Arz array, two memory optimizations were
 applied:
 
-  # *Storing the high-fluence region in shared memory*: The first optimization is based on the high access rate of the A[r][z] elements near the photon source (or at the origin in the MCML model), causing significant contention when atomic instructions are used. Therefore, this region of the A[r][z] array is cached in the shared memory. Namely, if a photon packet is absorbed inside the high-fluence region, its weight is accumulated atomically into the shared memory copy. Otherwise, its weight is added directly into the global memory atomically. At the end of the simulation, the values temporarily stored in the shared memory copy are written (flushed) to the master copy in the global memory.
+  # *Storing the high-fluence region in shared memory*: The first optimization is based on the high access rate of the Arz elements near the photon source (or at the origin in the MCML model), causing significant contention when atomic instructions are used. Therefore, this region of the Arz array is cached in the shared memory. Namely, if a photon packet is absorbed inside the high-fluence region, its weight is accumulated atomically into the shared memory copy. Otherwise, its weight is added directly into the global memory atomically. At the end of the simulation, the values temporarily stored in the shared memory copy are written (flushed) to the master copy in the global memory.
   # *Caching photon absorption history in registers*: To further reduce the number of atomic accesses (even to the shared memory), the recent write history, representing previous absorption events, can be stored privately in registers by each thread.
 
 As an additional optimization to avoid atomic accesses, in the GPU version, photon packets at
@@ -107,8 +107,8 @@ values in the original MCML code.
 
 === 2.3 Alternative Solution: Reflectance/transmittance-only Mode===
 GPU-MCML offers an alternative way to overcome the performance bottleneck. In some cases,
-the user is not interested in the internal absorption probability collected in the A[r][z] array. As
-the major performance bottleneck is caused by the atomic update of the A[r][z] array for almost
+the user is not interested in the internal absorption probability collected in the Arz array. As
+the major performance bottleneck is caused by the atomic update of the Arz array for almost
 every step for each photon, ignoring the array update (while still reducing the photon packet
 weight after each scattering event) causes a major performance boost while still retaining valid
 reflectance and transmittance outputs. The maximum number of atomic memory operations
