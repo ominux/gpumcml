@@ -1,4 +1,5 @@
   * [Setup Getting Started Guide]
   * [DirectoryStructure Directory Structure]
   * [Differences CPU-MCML vs. GPU-MCML]
+  * [Optimizations Optimizations]
   * [FAQ FAQ]
