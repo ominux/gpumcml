@@ -1,14 +1,40 @@
 #summary How GPUMCML and CPUMCML differs
 #sidebar SiteMap
 
-= Introduction =
 
-Add your content here.
+<wiki:toc max_depth="2" />
 
+== Introduction  == 
+----
+One important difference between writing CUDA code and writing a traditional C program (for
+sequential execution on a CPU) is the need to devise an efficient parallelization scheme for the
+case of CUDA programming. Although the syntax used by CUDA is, in theory, very similar
+to C, the programming approach differs significantly. Compared to serial execution on a single
+CPU where only one photon packet is simulated at a time, the GPU-accelerated version can
+simulate many photon packets in parallel using multiple threads executed across many scalar
+processors. The total number of photon packets to be simulated are split equally among the
+threads.
 
-= Details =
+== GPU program/kernel == 
+----
+The GPU program or kernel contains the computationally intensive loop in the MCML simulation. Other miscellaneous
+tasks, such as reading the simulation input file, are performed on the host CPU. Each thread
+executes the same loop, except using a unique random number sequence. Also, a single copy
+of the absorption array is allocated in the global memory, and all the threads update this array
+concurrently using atomic instructions. Although it is, in theory, possible to allocate a private
+copy of the array for each thread, this approach greatly limits the number of threads that can be
+launched when the absorption array is large, especially in 3-D cases. Therefore, a single copy
+is allocated by default (and the program provides an option to specify the number of replicas).
 
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+== GPU kernel configuration== 
+----
+The kernel configuration, which significantly affects performance, is set based on the generation
+of the GPU detected at runtime. The number of thread blocks is chosen based on the
+number of SMs detected, while the number of threads within each block is chosen based on the
+Compute Capability of the graphics card. For example, the kernel configuration is specified as
+15 thread blocks (Q=15), each containing 896 threads (P=896), for GTX 480 with a Compute
+Capability of 2.0. As shown below, each thread block is physically mapped onto one of the 15
+multiprocessors and the 896 threads interleave its execution on the 32 scalar processors within
+each multiprocessor on GTX 480.
+
+[https://gpumcml.googlecode.com/svn/wiki/images/gpumcml.png]
