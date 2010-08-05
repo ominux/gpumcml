@@ -5,7 +5,7 @@
 <wiki:toc max_depth="2" />
 
 
-== Introduction  == 
+== Introduction to MCML == 
 ----
 The MCML algorithm models steady-state light transport in multi-layered turbid media
 using the Monte Carlo method. A pencil beam perpendicular to the surface is modelled; more complex
@@ -15,8 +15,9 @@ assumes infinitely wide layers, each described by its thickness and its optical 
 In the MCML code, three physical quantities – absorption, reflectance, and transmittance
 – are calculated in a spatially-resolved manner. Absorption is recorded in a 2-D array, which stores the photon absorption probability density as a function of radius r and depth z for the pencil beam (or impulse response). Absorption probability density can be converted into more common quantities, such as photon fluence by dividing by the local absorption coefficient.
 
-The simulation of each photon packet consists of a repetitive sequence of computational steps and can be made independent of other photon packets by creating separate absorption arrays and, importantly, decoupling random number generation using different seeds. Therefore, a conventional software-based acceleration approach involves processing photon packets simultaneously on multiple processors. Figure 1 shows a flow chart of the key steps in an MCML simulation, which includes photon initialization, position update, direction update, fluence update, and photon termination. Further details on each computational step may be found in the original papers by [http://omlc.ogi.edu/software/mc/mcpubs/1995LWCMPBMcml.pdf Wang et al.]
+The simulation of each photon packet consists of a repetitive sequence of computational steps and can be made independent of other photon packets by creating separate absorption arrays and, importantly, decoupling random number generation using different seeds. Therefore, a conventional software-based acceleration approach involves processing photon packets simultaneously on multiple processors. The following figure shows a flow chart of the key steps in an MCML simulation, which includes photon initialization, position update, direction update, fluence update, and photon termination. Further details on each computational step may be found in the original papers by [http://omlc.ogi.edu/software/mc/mcpubs/1995LWCMPBMcml.pdf Wang et al.]
 
+[https://gpumcml.googlecode.com/svn/wiki/images/mcml.jpg]
 
 == Parallelization of MCML== 
 ----
