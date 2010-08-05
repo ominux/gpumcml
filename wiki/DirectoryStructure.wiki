@@ -16,7 +16,7 @@ The following chart shows how the folders are organized and the purpose of each 
   * *gpumcml_kernel.h*: Header file for GPU-related data structures and kernel configurations
   * *gpumcml_main.cu*: Source file containing the main function and host CPU code
   * *gpumcml_kernel.cu*: Source file for GPU-MCML kernel functions (simulation functions)
-  * *gpumcml_mem.cu*: Source file for GPU memory allocation, initialization, and transfer (Host <--> GPU)
+  * *gpumcml_mem.cu*: Source file for GPU memory allocation, initialization, and transfer between the host and GPU
   * *gpumcml_rng.cu*: Source file for the Random Number Generator algorithm and initialization
   * *gpumcml_io.c*: Source file for command line and input parameter parsing + simulation file output
 
