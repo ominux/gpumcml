@@ -1,2 +1,3 @@
   * [Setup Getting Started Guide]
+  * [DirectoryStructure Directory Structure]
   * [FAQ FAQ]
