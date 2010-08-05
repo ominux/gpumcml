@@ -5,7 +5,8 @@
 
 == Overview of Directory == 
 ----
-The following chart shows how the folders are organized and the purpose of each folder. 
+The following chart shows how the folders are organized and the purpose of each folder.  The same structure is used for both the fast version and the simplified version. 
+
 [https://gpumcml.googlecode.com/svn/wiki/images/directory.jpg]
 
 == File Description == 
