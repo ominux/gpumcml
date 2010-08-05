@@ -1,6 +1,6 @@
 #summary How the File Directory is Organized
 #sidebar SiteMap
 
-== Overview == 
+[https://gpumcml.googlecode.com/svn/wiki/images/directory.jpg]
 
 == Detailed Description == 
