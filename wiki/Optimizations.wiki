@@ -1,7 +1,7 @@
 #summary How the Optimizations Work
 #sidebar SiteMap
 
-<wiki:toc max_depth="2" />
+<wiki:toc max_depth="3" />
 
 == 1. Programming Graphics Processing Units == 
 ----
