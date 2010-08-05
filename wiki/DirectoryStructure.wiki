@@ -5,9 +5,12 @@
 
 == Overview of Directory == 
 ----
-The following chart shows how the folders are organized and the purpose of each folder.  The same structure is used for both the fast version and the simplified version. 
+The following chart shows how the folders are organized and the purpose of each folder.  The same structure is used for both the fast version and the simplified version.  The source code files are stored in the top-level directory.
 
 [https://gpumcml.googlecode.com/svn/wiki/images/directory.jpg]
 
 == File Description == 
 ----
+
+=== For Windows Only === 
+  *# GPUMCML.vcproj*: Visual Studio 2008 project file
