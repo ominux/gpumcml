@@ -4,7 +4,21 @@
 
 <wiki:toc max_depth="2" />
 
+
 == Introduction  == 
+----
+The MCML algorithm models steady-state light transport in multi-layered turbid media
+using the Monte Carlo method. A pencil beam perpendicular to the surface is modelled; more complex
+sources can be modelled with modifications or with other tools. The implementation
+assumes infinitely wide layers, each described by its thickness and its optical properties, comprising the absorption coefficient, scattering coefficient, anisotropy factor, and refractive index.
+
+In the MCML code, three physical quantities – absorption, reflectance, and transmittance
+– are calculated in a spatially-resolved manner. Absorption is recorded in a 2-D array  A[r][z], which stores the photon absorption probability density as a function of radius r and depth z for the pencil beam (or impulse response). Absorption probability density can be converted into more common quantities, such as photon fluence which is obtained by dividing A[r][z] by the local absorption coefficient.
+
+The simulation of each photon packet consists of a repetitive sequence of computational steps and can be made independent of other photon packets by creating separate absorption arrays and, importantly, decoupling random number generation using different seeds. Therefore, a conventional software-based acceleration approach involves processing photon packets simultaneously on multiple processors. Figure 1 shows a flow chart of the key steps in an MCML simulation, which includes photon initialization, position update, direction update, fluence update, and photon termination. Further details on each computational step may be found in the original papers by [http://omlc.ogi.edu/software/mc/mcpubs/1995LWCMPBMcml.pdf Wang et al.]
+
+
+== Parallelization of MCML== 
 ----
 One important difference between writing CUDA code and writing a traditional C program (for
 sequential execution on a CPU) is the need to devise an efficient parallelization scheme for the
