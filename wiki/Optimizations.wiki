@@ -1,14 +1,17 @@
 #summary How the Optimizations Work
 #sidebar SiteMap
 
-= Introduction =
+<wiki:toc max_depth="2" />
 
-Add your content here.
+== Programming Graphics Processing Units == 
+----
+This section introduces the key terminology for understanding the NVIDIA GPU hardware and
+its programming model. This learning curve is required to fully utilize this emerging scientific
+computing platform for this and other related applications.
 
-
-= Details =
-
-Add your content here.  Format your content with:
-  * Text in *bold* or _italic_
-  * Headings, paragraphs, and lists
-  * Automatic links to other wiki pages
+GPU-accelerated scientific computing is becoming increasingly popular with the release of an
+easier-to-use programming model and environment from NVIDIA (Santa Clara, CA), called
+[http://www.nvidia.com/object/cuda_home_new.html CUDA], short for Compute Unified Device Architecture. CUDA provides a C-like programming
+interface for NVIDIA GPUs and it suits general-purpose applications much better
+than traditional GPU programming languages. However, performance optimization of a CUDA
+program requires careful consideration of the GPU architecture.
