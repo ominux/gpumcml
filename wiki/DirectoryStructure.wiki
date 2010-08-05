@@ -1,6 +1,12 @@
 #summary How the File Directory is Organized
 #sidebar SiteMap
 
+<wiki:toc max_depth="2" />
+
+== Overview of Directory == 
+----
+The following chart shows how the folders are organized and the purpose of each folder. 
 [https://gpumcml.googlecode.com/svn/wiki/images/directory.jpg]
 
-== Detailed Description == 
+== File Description == 
+----
