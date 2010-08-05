@@ -84,7 +84,7 @@ carefully consider the underlying GPU architecture, particularly the differences
 === 2.1 Key Performance Bottleneck===
 As all threads need to atomically access the same absorption array in the global memory during
 every fluence update step, this step becomes a major performance bottleneck when thousands
-of threads (13440 threads in example shown in Fig. 3) are present. In CUDA, atomic addition
+of threads are present. In CUDA, atomic addition
 is performed using the atomicAdd() instruction. However, using atomicAdd() instructions
 to access the global memory is particularly slow, both because global memory access is
 a few orders of magnitude slower than that of on-chip memories and because atomicity prevents
