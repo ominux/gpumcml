@@ -19,7 +19,7 @@ MAX_REG_COUNT_SM12 := 0
 MAX_REG_COUNT_SM11 := 0
 
 # To compile 32-bit binaries on a 64-bit machine, set this to 1.
-COMPILE_32 := 1
+COMPILE_32 := 0
 
 ######################################################################
 # Compiler flags
@@ -79,7 +79,7 @@ PROG_SM13 := $(PROG_BASE).sm_13
 PROG_SM12 := $(PROG_BASE).sm_12
 PROG_SM11 := $(PROG_BASE).sm_11
 
-default: $(PROG_SM20) $(PROG_SM13) $(PROG_SM12) $(PROG_SM11)
+default: $(PROG_SM20)
 
 ######################################################################
 # Source files
