@@ -26,6 +26,8 @@
 
 #define SINGLE_PRECISION
 
+#define MAX_DATA_NUM 20000 //add by zhuyc 20161008
+
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
@@ -100,13 +102,16 @@ typedef struct
   float mutr;			// Reciprocal mu_total [cm]
   float mua;			// Absorption coefficient [1/cm]
   float g;			  // Anisotropy factor [-]
+  float gamma;				// Fractional contribution of the standard HG phase function, add by zhuyc 20161003 // mode by Yao 20190117
   float n;			  // Refractive index [-]
+
+  float data[MAX_DATA_NUM];  /*add by zhuyc 20161004*/
 } LayerStruct;
 
 // Detection Grid specifications
 typedef struct
 {
-  float dr;		    // Detection grid resolution, r-direction [cm]
+  float dr;		    // Detection grid resolution, r-direction [cm] 
   float dz;		    // Detection grid resolution, z-direction [cm]
 
   UINT32 na;		  // Number of grid elements in angular-direction [-]
@@ -133,6 +138,7 @@ typedef struct
 
   UINT32 n_layers;
   LayerStruct* layers;
+
 } SimulationStruct;
 
 // Per-GPU simulation states
@@ -150,12 +156,14 @@ typedef struct
   // they live across different simulation runs and must be copied back
   // to the host.
   UINT64 *x;
-  UINT32 *a;
+  UINT32 *a; 
 
   // output data
   UINT64* Rd_ra;
   UINT64* A_rz;			// Pointer to a 2D absorption matrix!
   UINT64* Tt_ra;
+
+  float *data;  //add by zhuyc 20161008
 } SimState;
 
 // Everything a host thread needs to know in order to run simulation on

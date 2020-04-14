@@ -51,6 +51,8 @@ int InitDCMem(SimulationStruct *sim, UINT32 A_rz_overflow)
     &h_simparam, sizeof(SimParamGPU)) );
 
   LayerStructGPU h_layerspecs[MAX_LAYERS];
+  
+  //GFLOAT data_1_tmp[MAX_DATA_NUM];/*add by zhuyc 20161005*/
 
   for (UINT32 i = 0; i < n_layers; ++i)
   {
@@ -145,6 +147,14 @@ int InitSimStates(SimState* HostMem, SimState* DeviceMem,
   if(HostMem->Tt_ra==NULL){printf("Error allocating HostMem->Tt_ra"); exit (1);}
   CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->Tt_ra, size) );
   CUDA_SAFE_CALL( cudaMemset(DeviceMem->Tt_ra, 0, size) );
+  
+  /*add by zhuyc 20161008 begin*/
+  // Allocate data[MAX_DATA_NUM] on host and device
+  size = MAX_DATA_NUM * sizeof(float);
+  CUDA_SAFE_CALL( cudaMalloc((void**)&DeviceMem->data, size) );
+  CUDA_SAFE_CALL( cudaMemcpy(DeviceMem->data, sim->layers[1].data, size,
+    cudaMemcpyHostToDevice) );  
+  /*add by zhuyc 20161008 end*/
 
   /* Allocate and initialize GPU thread states on the device.
   *

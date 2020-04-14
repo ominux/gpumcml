@@ -195,12 +195,14 @@ typedef struct __align__(16)
   GFLOAT dz;                 // z grid separation.[cm] 
   GFLOAT dr;                 // r grid separation.[cm] 
 
+
   UINT32 na;                // array range 0..na-1. 
   UINT32 nz;                // array range 0..nz-1. 
   UINT32 nr;                // array range 0..nr-1. 
 
   UINT32 num_layers;        // number of layers. 
   UINT32 A_rz_overflow;     // overflow threshold for A_rz_shared
+
 } SimParamGPU;
 
 typedef struct __align__(16)
@@ -214,6 +216,10 @@ typedef struct __align__(16)
 
   GFLOAT g;                  // anisotropy.
 
+  GFLOAT gamma;					// add by zhuyc 20161003 // mod by Yao 20190117
+
+  //GFLOAT data[20+1];    //add by zhuyc 20161004
+
   GFLOAT cos_crit0, cos_crit1;
 } LayerStructGPU;
 
@@ -222,6 +228,7 @@ typedef struct __align__(16)
 
 __constant__ SimParamGPU d_simparam;
 __constant__ LayerStructGPU d_layerspecs[MAX_LAYERS];
+
 
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////

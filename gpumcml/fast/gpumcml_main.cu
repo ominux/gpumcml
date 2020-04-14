@@ -118,6 +118,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
 
   // Init the remaining states.
   InitSimStates(HostMem, &DeviceMem, &tstates, hstate->sim, n_threads);
+  //printf("---DEBUG ZYC InitDCMem DONE\n");
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
   cudastat=cudaGetLastError(); // Check if there was an error
   if (cudastat)
@@ -130,6 +131,7 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
   }
 
   InitDCMem(hstate->sim, hstate->A_rz_overflow);
+  //printf("---DEBUG ZYC InitDCMem DONE\n");
   CUDA_SAFE_CALL( cudaThreadSynchronize() ); // Wait for all threads to finish
   cudastat=cudaGetLastError(); // Check if there was an error
   if (cudastat)
@@ -204,8 +206,8 @@ static CUT_THREADPROC RunGPUi(HostThreadState *hstate)
       DeviceMem.n_photons_left, sizeof(unsigned int),
       cudaMemcpyDeviceToHost) );
 
-    printf("[GPU %u] batch %5d, number of photons left %10u\n",
-      hstate->dev_id, i, *(HostMem->n_photons_left));
+    //printf("[GPU %u] batch %5d, number of photons left %10u\n",
+    //  hstate->dev_id, i, *(HostMem->n_photons_left));
   }
 
   // Sum the multiple copies of A_rz in the global memory.
@@ -258,7 +260,9 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   // Start simulation kernel exec timer
   unsigned int execTimer = 0;
   CUT_SAFE_CALL( cutCreateTimer(&execTimer) );
+  //printf("------DEBUG ZYC cutCreateTimer DONE\n");
   CUT_SAFE_CALL( cutStartTimer(execTimer) );
+  //printf("------DEBUG ZYC cutStartTimer DONE\n");
 
   // Distribute all photons among GPUs.
   UINT32 n_photons_per_GPU = simulation->number_of_photons / num_GPUs;
@@ -286,9 +290,12 @@ static void DoOneSimulation(int sim_id, SimulationStruct* simulation,
   {
     hthreads[i] = cutStartThread((CUT_THREADROUTINE)RunGPUi, hstates[i]);
   }
+  //printf("------DEBUG ZYC cutStartThread DONE\n");
 
   // Wait for all host threads to finish.
   cutWaitForThreads(hthreads, num_GPUs);
+
+  //printf("------DEBUG ZYC cutWaitForThreads DONE\n");
 
 
   // Check any of the threads failed.
@@ -359,6 +366,7 @@ int main(int argc, char* argv[])
   int n_simulations;
 
   int i;
+
 
   // Parse command-line arguments.
   if (interpret_arg(argc, argv, &filename,
